@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProCon — Typography Reference</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: #0b0f1a;
+      color: #f1f5f9;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #1565C0;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 0 28px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      border-bottom: 1px solid #c5d8ef;
+    }
+    .logo-box {
+      background: #fff;
+      border-radius: 8px;
+      padding: 5px 14px;
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .logo-text {
+      font-family: 'Futura XBlk BT','Futura','Century Gothic', Impact, sans-serif;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      line-height: 1;
+    }
+    .logo-pro  { color: #1A4F9C; }
+    .logo-con  { color: #00AEEF; }
+    .logo-reg  { font-size: 10px; vertical-align: super; color: #00AEEF; }
+    .header-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .header-sub {
+      font-size: 10px;
+      color: rgba(255,255,255,0.75);
+      margin-top: 2px;
+    }
+
+    /* ── Layout ── */
+    .page { padding: 28px; display: flex; flex-direction: column; gap: 20px; }
+
+    /* ── Card ── */
+    .card {
+      background: #1a2235;
+      border-radius: 14px;
+      padding: 20px 24px;
+      border: 1px solid rgba(255,255,255,0.07);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 750;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+    }
+    .card-sub {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 18px;
+    }
+
+    /* ── Section chip ── */
+    .section-chip {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.3px;
+      text-transform: uppercase;
+      color: #4b5563;
+      margin: 24px 0 8px;
+    }
+    .section-chip:first-child { margin-top: 0; }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { border-bottom: 2px solid rgba(255,255,255,0.07); }
+    th {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 6px 14px 10px 0;
+      text-align: left;
+    }
+    th.center { text-align: center; }
+    td {
+      padding: 10px 14px 10px 0;
+      font-size: 13px;
+      color: #f1f5f9;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    td.center { text-align: center; }
+    tr:hover td { background: rgba(0,212,184,0.04); }
+
+    /* even row tint */
+    tbody tr:nth-child(even) td { background: rgba(0,212,184,0.03); }
+
+    /* ── Pills ── */
+    .pill {
+      display: inline-block;
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .pill-bold   { background: rgba(34,197,94,0.15);  color: #22c55e; }
+    .pill-semi   { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .pill-medium { background: rgba(148,163,184,0.12);color: #94a3b8; }
+    .pill-regular{ background: rgba(75,85,99,0.2);    color: #6b7280; }
+
+    /* weight badge */
+    .w-badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+      color: #00d4b8;
+    }
+
+    /* size preview */
+    .preview-cell { color: #f1f5f9; line-height: 1.2; }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* ── Summary KPI row ── */
+    .kpi-row { display: flex; gap: 14px; flex-wrap: wrap; }
+    .kpi-box {
+      background: #111827;
+      border-radius: 10px;
+      padding: 14px 20px;
+      border: 1px solid rgba(255,255,255,0.07);
+      flex: 1;
+      min-width: 110px;
+    }
+    .kpi-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 6px;
+    }
+    .kpi-value {
+      font-size: 34px;
+      font-weight: 700;
+      color: #00d4b8;
+      line-height: 1;
+    }
+    .kpi-sub { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo-box">
+    <span class="logo-text">
+      <span class="logo-pro">Pro</span><span class="logo-con">Con</span><sup class="logo-reg">®</sup>
+    </span>
+  </div>
+  <div>
+    <div class="header-title">Typography Reference</div>
+    <div class="header-sub">Dashboard.jsx — All Font Sizes &amp; Bold Settings</div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- Summary KPIs -->
+  <div class="card">
+    <div class="card-title">Font Size Summary</div>
+    <div class="card-sub">Total distinct font sizes used across the dashboard</div>
+    <div class="kpi-row">
+      <div class="kpi-box">
+        <div class="kpi-label">Sizes Used</div>
+        <div class="kpi-value">14</div>
+        <div class="kpi-sub">9 · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17 · 18 · 22 · 34 · 10(sup)</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-label">Bold Entries</div>
+        <div class="kpi-value" style="color:#22c55e;">26</div>
+        <div class="kpi-sub">fontWeight ≥ 700</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-label">Semi-Bold</div>
+        <div class="kpi-value" style="color:#f59e0b;">12</div>
+        <div class="kpi-sub">fontWeight 600</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-label">Regular</div>
+        <div class="kpi-value" style="color:#94a3b8;">7</div>
+        <div class="kpi-sub">fontWeight ≤ 500</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="card" style="padding:14px 24px;">
+    <div class="legend">
+      <div class="legend-item"><span class="pill pill-bold">Bold</span> fontWeight ≥ 700 (700 · 750 · 800 · 900)</div>
+      <div class="legend-item"><span class="pill pill-semi">Semi-Bold</span> fontWeight 600</div>
+      <div class="legend-item"><span class="pill pill-medium">Medium</span> fontWeight 500</div>
+      <div class="legend-item"><span class="pill pill-regular">Regular</span> fontWeight 400 or not set</div>
+    </div>
+  </div>
+
+  <!-- Main Table -->
+  <div class="card">
+    <div class="card-title">Complete Typography Map</div>
+    <div class="card-sub">Every text element in Dashboard.jsx with its size, weight, and bold status</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:22%;">Element / Location</th>
+          <th style="width:28%;">Description</th>
+          <th class="center" style="width:10%;">Size (px)</th>
+          <th class="center" style="width:12%;">Weight</th>
+          <th class="center" style="width:10%;">Bold</th>
+          <th style="width:18%;">Preview</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- ── HEADER ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">Header Bar</span>
+        </td></tr>
+
+        <tr>
+          <td>ProCon Logo</td>
+          <td>Brand logotype text</td>
+          <td class="center"><span class="w-badge">18</span></td>
+          <td class="center"><span class="w-badge">900</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:18px;font-weight:900;color:#1A4F9C;">ProCon</td>
+        </tr>
+        <tr>
+          <td>Logo ® superscript</td>
+          <td>Registered trademark mark</td>
+          <td class="center"><span class="w-badge">10</span></td>
+          <td class="center"><span class="w-badge">—</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:10px;color:#00AEEF;">®</td>
+        </tr>
+        <tr>
+          <td>Company Name</td>
+          <td>Session company / "Production Dashboard"</td>
+          <td class="center"><span class="w-badge">14</span></td>
+          <td class="center"><span class="w-badge">600</span></td>
+          <td class="center"><span class="pill pill-semi">Semi-Bold</span></td>
+          <td class="preview-cell" style="font-size:14px;font-weight:600;color:#fff;">Crystal CSPL</td>
+        </tr>
+        <tr>
+          <td>Refresh Info Bar</td>
+          <td>Line · Date · Shift · User · Time</td>
+          <td class="center"><span class="w-badge">10</span></td>
+          <td class="center"><span class="w-badge">—</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:10px;color:rgba(255,255,255,0.75);">Line A · 30/05/2026 · Shift A</td>
+        </tr>
+        <tr>
+          <td>Filter Field Label</td>
+          <td>Date / Shift / Line floating label</td>
+          <td class="center"><span class="w-badge">11</span></td>
+          <td class="center"><span class="w-badge">500</span></td>
+          <td class="center"><span class="pill pill-medium">Medium</span></td>
+          <td class="preview-cell" style="font-size:11px;font-weight:500;color:#fff;">Date *</td>
+        </tr>
+        <tr>
+          <td>Filter Input Text</td>
+          <td>Date picker / Shift / Line select value</td>
+          <td class="center"><span class="w-badge">12</span></td>
+          <td class="center"><span class="w-badge">—</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:12px;color:#1565C0;">2026-05-30</td>
+        </tr>
+        <tr>
+          <td>Refresh Button</td>
+          <td>Action button label</td>
+          <td class="center"><span class="w-badge">12</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:12px;font-weight:700;color:#fff;">REFRESH</td>
+        </tr>
+
+        <!-- ── SIDEBAR ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">Sidebar</span>
+        </td></tr>
+
+        <tr>
+          <td>Section Heading</td>
+          <td>"Operations", "Insights" group labels</td>
+          <td class="center"><span class="w-badge">10</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:10px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:1.3px;">OPERATIONS</td>
+        </tr>
+        <tr>
+          <td>Nav Item — Active</td>
+          <td>Currently selected nav label</td>
+          <td class="center"><span class="w-badge">13</span></td>
+          <td class="center"><span class="w-badge">600</span></td>
+          <td class="center"><span class="pill pill-semi">Semi-Bold</span></td>
+          <td class="preview-cell" style="font-size:13px;font-weight:600;color:#00d4b8;">▣ Overview</td>
+        </tr>
+        <tr>
+          <td>Nav Item — Inactive</td>
+          <td>Other nav labels</td>
+          <td class="center"><span class="w-badge">13</span></td>
+          <td class="center"><span class="w-badge">400</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:13px;font-weight:400;color:#94a3b8;">◈ Production</td>
+        </tr>
+        <tr>
+          <td>Nav Icon</td>
+          <td>Symbol icon beside nav label</td>
+          <td class="center"><span class="w-badge">15</span></td>
+          <td class="center"><span class="w-badge">—</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:15px;">◈</td>
+        </tr>
+        <tr>
+          <td>Sidebar Buttons</td>
+          <td>Light Mode / Logout button text</td>
+          <td class="center"><span class="w-badge">12</span></td>
+          <td class="center"><span class="w-badge">600</span></td>
+          <td class="center"><span class="pill pill-semi">Semi-Bold</span></td>
+          <td class="preview-cell" style="font-size:12px;font-weight:600;color:#00d4b8;">☀ Light Mode</td>
+        </tr>
+
+        <!-- ── CARD COMPONENT ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">Card Component</span>
+        </td></tr>
+
+        <tr>
+          <td>Card Title</td>
+          <td>Main heading of every card</td>
+          <td class="center"><span class="w-badge">18</span></td>
+          <td class="center"><span class="w-badge">750</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:18px;font-weight:750;">Operators</td>
+        </tr>
+        <tr>
+          <td>Card Sub-title</td>
+          <td>Optional subtitle below card title</td>
+          <td class="center"><span class="w-badge">12</span></td>
+          <td class="center"><span class="w-badge">—</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:12px;color:#94a3b8;">Section summary</td>
+        </tr>
+
+        <!-- ── OPERATORS CARD ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">Operators Card</span>
+        </td></tr>
+
+        <tr>
+          <td>Badge Label</td>
+          <td>"Att Rate" badge heading</td>
+          <td class="center"><span class="w-badge">12</span></td>
+          <td class="center"><span class="w-badge">600</span></td>
+          <td class="center"><span class="pill pill-semi">Semi-Bold</span></td>
+          <td class="preview-cell" style="font-size:12px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">ATT RATE</td>
+        </tr>
+        <tr>
+          <td>Badge Value</td>
+          <td>Att rate % number</td>
+          <td class="center"><span class="w-badge">18</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:18px;font-weight:700;color:#00d4b8;">94.5%</td>
+        </tr>
+        <tr>
+          <td>Grid Sub-label</td>
+          <td>Total WS / Active WS / Prs Oprs / Abs Oprs</td>
+          <td class="center"><span class="w-badge">13</span></td>
+          <td class="center"><span class="w-badge">600</span></td>
+          <td class="center"><span class="pill pill-semi">Semi-Bold</span></td>
+          <td class="preview-cell" style="font-size:13px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">TOTAL WS</td>
+        </tr>
+        <tr>
+          <td>Grid Value</td>
+          <td>Numeric values (240, 236, …)</td>
+          <td class="center"><span class="w-badge">22</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:22px;font-weight:700;">240</td>
+        </tr>
+
+        <!-- ── TARGET vs ACTUAL ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">Target vs Actual Card</span>
+        </td></tr>
+
+        <tr>
+          <td>Column Headers</td>
+          <td>Pcs / Output / Hr / Eff %</td>
+          <td class="center"><span class="w-badge">13</span></td>
+          <td class="center"><span class="w-badge">600</span></td>
+          <td class="center"><span class="pill pill-semi">Semi-Bold</span></td>
+          <td class="preview-cell" style="font-size:13px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">EFF %</td>
+        </tr>
+        <tr>
+          <td>Row Label</td>
+          <td>"Target" / "Actual" row identifier</td>
+          <td class="center"><span class="w-badge">13</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:13px;font-weight:700;color:#94a3b8;">Target</td>
+        </tr>
+        <tr>
+          <td>Row Values</td>
+          <td>Pcs, Output/Hr, Eff% numbers</td>
+          <td class="center"><span class="w-badge">22</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:22px;font-weight:700;color:#22c55e;">1,250</td>
+        </tr>
+
+        <!-- ── STAT ROW ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">StatRow Component</span>
+        </td></tr>
+
+        <tr>
+          <td>Stat Label</td>
+          <td>Left-side descriptor text</td>
+          <td class="center"><span class="w-badge">14</span></td>
+          <td class="center"><span class="w-badge">—</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:14px;color:#94a3b8;">Worked Mins</td>
+        </tr>
+        <tr>
+          <td>Stat Value</td>
+          <td>Right-side numeric value</td>
+          <td class="center"><span class="w-badge">18</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:18px;font-weight:700;">420</td>
+        </tr>
+
+        <!-- ── KPICARD ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">KpiCard Component</span>
+        </td></tr>
+
+        <tr>
+          <td>KPI Label</td>
+          <td>Uppercase card label</td>
+          <td class="center"><span class="w-badge">10</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1.2px;">EFFICIENCY</td>
+        </tr>
+        <tr>
+          <td>KPI Main Value</td>
+          <td>Primary large number</td>
+          <td class="center"><span class="w-badge">34</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:34px;font-weight:700;line-height:1;">82.4</td>
+        </tr>
+        <tr>
+          <td>KPI Unit Suffix</td>
+          <td>Unit label beside value (%, pcs…)</td>
+          <td class="center"><span class="w-badge">16</span></td>
+          <td class="center"><span class="w-badge">400</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:16px;font-weight:400;color:#94a3b8;">%</td>
+        </tr>
+        <tr>
+          <td>KPI Sub Text</td>
+          <td>Supporting description below value</td>
+          <td class="center"><span class="w-badge">12</span></td>
+          <td class="center"><span class="w-badge">—</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:12px;color:#94a3b8;">vs 80% target</td>
+        </tr>
+
+        <!-- ── QUALITY ROW ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">QualityRow Component</span>
+        </td></tr>
+
+        <tr>
+          <td>Section Name</td>
+          <td>EndLine CHK / AQL / Finishing …</td>
+          <td class="center"><span class="w-badge">13</span></td>
+          <td class="center"><span class="w-badge">600</span></td>
+          <td class="center"><span class="pill pill-semi">Semi-Bold</span></td>
+          <td class="preview-cell" style="font-size:13px;font-weight:600;">EndLine CHK</td>
+        </tr>
+        <tr>
+          <td>Quality Values</td>
+          <td>Passed / RW / RJ piece counts</td>
+          <td class="center"><span class="w-badge">13</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:13px;font-weight:700;color:#22c55e;">1,145</td>
+        </tr>
+        <tr>
+          <td>Pass Rate %</td>
+          <td>Inline rate percentage on progress bar</td>
+          <td class="center"><span class="w-badge">12</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:12px;font-weight:700;color:#22c55e;">96.2%</td>
+        </tr>
+
+        <!-- ── HOURLY PRODUCTION ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">Hourly Production Card</span>
+        </td></tr>
+
+        <tr>
+          <td>Badge "Total" Label</td>
+          <td>Small label above total pcs</td>
+          <td class="center"><span class="w-badge">11</span></td>
+          <td class="center"><span class="w-badge">600</span></td>
+          <td class="center"><span class="pill pill-semi">Semi-Bold</span></td>
+          <td class="preview-cell" style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">TOTAL</td>
+        </tr>
+        <tr>
+          <td>Badge Total Value</td>
+          <td>Total pcs produced this shift</td>
+          <td class="center"><span class="w-badge">17</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:17px;font-weight:700;color:#00d4b8;">8,420 pcs</td>
+        </tr>
+        <tr>
+          <td>View Report Button</td>
+          <td>Button opening hourly report modal</td>
+          <td class="center"><span class="w-badge">11</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;">VIEW REPORT</td>
+        </tr>
+        <tr>
+          <td>Chart Axis Labels</td>
+          <td>X/Y axis tick text (Recharts)</td>
+          <td class="center"><span class="w-badge">10</span></td>
+          <td class="center"><span class="w-badge">—</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:10px;color:#94a3b8;">Hr 1</td>
+        </tr>
+        <tr>
+          <td>Chart Bar Labels</td>
+          <td>Pcs count above each bar</td>
+          <td class="center"><span class="w-badge">9</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:9px;font-weight:700;color:#22c55e;">142</td>
+        </tr>
+
+        <!-- ── QUALITY INFO TABLE ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">Quality Info Card</span>
+        </td></tr>
+
+        <tr>
+          <td>Table Header</td>
+          <td>Checked / Passed / RW / RJ column heads</td>
+          <td class="center"><span class="w-badge">11</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">PASSED</td>
+        </tr>
+        <tr>
+          <td>Section Name</td>
+          <td>EndLine CHK / AQL / Finishing / Packing</td>
+          <td class="center"><span class="w-badge">12</span></td>
+          <td class="center"><span class="w-badge">600</span></td>
+          <td class="center"><span class="pill pill-semi">Semi-Bold</span></td>
+          <td class="preview-cell" style="font-size:12px;font-weight:600;">AQL</td>
+        </tr>
+        <tr>
+          <td>Table Values</td>
+          <td>Pcs counts with % in parentheses</td>
+          <td class="center"><span class="w-badge">13</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:13px;font-weight:700;color:#22c55e;">1,200 (96%)</td>
+        </tr>
+
+        <!-- ── DHU CARD ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">DHU Card</span>
+        </td></tr>
+
+        <tr>
+          <td>DHU Badge Value</td>
+          <td>Overall DHU % — large badge</td>
+          <td class="center"><span class="w-badge">22</span></td>
+          <td class="center"><span class="w-badge">800</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:22px;font-weight:800;color:#ca8a04;">3.2%</td>
+        </tr>
+        <tr>
+          <td>DHU Col Group Header</td>
+          <td>RW / RJ group heading (colSpan)</td>
+          <td class="center"><span class="w-badge">11</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:11px;font-weight:700;color:#f472b6;text-transform:uppercase;letter-spacing:0.5px;">RW</td>
+        </tr>
+        <tr>
+          <td>DHU Col Sub-header</td>
+          <td>Defect Pcs / DHU % sub-column</td>
+          <td class="center"><span class="w-badge">10</span></td>
+          <td class="center"><span class="w-badge">600</span></td>
+          <td class="center"><span class="pill pill-semi">Semi-Bold</span></td>
+          <td class="preview-cell" style="font-size:10px;font-weight:600;color:#94a3b8;">Defect Pcs</td>
+        </tr>
+        <tr>
+          <td>DHU Row Label</td>
+          <td>"EndLine Checking" row name</td>
+          <td class="center"><span class="w-badge">13</span></td>
+          <td class="center"><span class="w-badge">600</span></td>
+          <td class="center"><span class="pill pill-semi">Semi-Bold</span></td>
+          <td class="preview-cell" style="font-size:13px;font-weight:600;">EndLine Checking</td>
+        </tr>
+        <tr>
+          <td>DHU Data Values</td>
+          <td>CheckedPcs / ReWorkPcs / RejectedPcs</td>
+          <td class="center"><span class="w-badge">14</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:14px;font-weight:700;color:#f472b6;">48</td>
+        </tr>
+
+        <!-- ── DEFECT ANALYSIS ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">Defect Analysis Card</span>
+        </td></tr>
+
+        <tr>
+          <td>Subtitle Text</td>
+          <td>"Today's defect breakdown by type"</td>
+          <td class="center"><span class="w-badge">11</span></td>
+          <td class="center"><span class="w-badge">—</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:11px;color:#94a3b8;">Today's defect breakdown by type</td>
+        </tr>
+        <tr>
+          <td>Defect Name</td>
+          <td>Defect description label beside bar</td>
+          <td class="center"><span class="w-badge">12</span></td>
+          <td class="center"><span class="w-badge">500</span></td>
+          <td class="center"><span class="pill pill-medium">Medium</span></td>
+          <td class="preview-cell" style="font-size:12px;font-weight:500;">Open Seam</td>
+        </tr>
+        <tr>
+          <td>Bar % Label (inside)</td>
+          <td>Percentage inside colored bar</td>
+          <td class="center"><span class="w-badge">11</span></td>
+          <td class="center"><span class="w-badge">700</span></td>
+          <td class="center"><span class="pill pill-bold">Bold</span></td>
+          <td class="preview-cell" style="font-size:11px;font-weight:700;color:#fff;">34%</td>
+        </tr>
+        <tr>
+          <td>Defect Pcs Count</td>
+          <td>Right-side pcs count</td>
+          <td class="center"><span class="w-badge">11</span></td>
+          <td class="center"><span class="w-badge">600</span></td>
+          <td class="center"><span class="pill pill-semi">Semi-Bold</span></td>
+          <td class="preview-cell" style="font-size:11px;font-weight:600;color:#94a3b8;">28</td>
+        </tr>
+
+        <!-- ── STATUS / ERROR ── -->
+        <tr><td colspan="6" style="padding-top:18px;padding-bottom:4px;">
+          <span class="section-chip">State Messages</span>
+        </td></tr>
+
+        <tr>
+          <td>Error Message</td>
+          <td>Red error banner text</td>
+          <td class="center"><span class="w-badge">13</span></td>
+          <td class="center"><span class="w-badge">—</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:13px;color:#ef4444;">Error: Production data not found</td>
+        </tr>
+        <tr>
+          <td>Loading / Empty State</td>
+          <td>Center-page status messages</td>
+          <td class="center"><span class="w-badge">14</span></td>
+          <td class="center"><span class="w-badge">—</span></td>
+          <td class="center"><span class="pill pill-regular">Regular</span></td>
+          <td class="preview-cell" style="font-size:14px;color:#94a3b8;">Loading...</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Font Scale Visual Reference -->
+  <div class="card">
+    <div class="card-title">Font Scale — Visual Reference</div>
+    <div class="card-sub">All sizes rendered at fontWeight 700 for direct comparison</div>
+    <div style="display:flex;flex-direction:column;gap:14px;margin-top:8px;">
+      <div style="display:flex;align-items:baseline;gap:16px;">
+        <span style="font-size:11px;font-weight:700;color:#94a3b8;min-width:30px;text-align:right;">9px</span>
+        <span style="font-size:9px;font-weight:700;color:#f1f5f9;">Aa — Chart bar labels</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:16px;">
+        <span style="font-size:11px;font-weight:700;color:#94a3b8;min-width:30px;text-align:right;">10px</span>
+        <span style="font-size:10px;font-weight:700;color:#f1f5f9;">Aa — Sidebar section, KPI label, header sub-text</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:16px;">
+        <span style="font-size:11px;font-weight:700;color:#94a3b8;min-width:30px;text-align:right;">11px</span>
+        <span style="font-size:11px;font-weight:700;color:#f1f5f9;">Aa — Filter label, badge label, quality header, DHU group header, defect bar %</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:16px;">
+        <span style="font-size:11px;font-weight:700;color:#94a3b8;min-width:30px;text-align:right;">12px</span>
+        <span style="font-size:12px;font-weight:700;color:#f1f5f9;">Aa — Refresh button, sidebar buttons, badge att-rate label, pass rate %, quality section name</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:16px;">
+        <span style="font-size:11px;font-weight:700;color:#94a3b8;min-width:30px;text-align:right;">13px</span>
+        <span style="font-size:13px;font-weight:700;color:#f1f5f9;">Aa — Nav items, quality row values, target row label, DHU row label, col headers, error text</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:16px;">
+        <span style="font-size:11px;font-weight:700;color:#94a3b8;min-width:30px;text-align:right;">14px</span>
+        <span style="font-size:14px;font-weight:700;color:#f1f5f9;">Aa — Company name, stat label, DHU data values, loading text</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:16px;">
+        <span style="font-size:11px;font-weight:700;color:#94a3b8;min-width:30px;text-align:right;">15px</span>
+        <span style="font-size:15px;font-weight:700;color:#f1f5f9;">Aa — Nav icon symbol</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:16px;">
+        <span style="font-size:11px;font-weight:700;color:#94a3b8;min-width:30px;text-align:right;">16px</span>
+        <span style="font-size:16px;font-weight:400;color:#94a3b8;">Aa — KPI unit suffix (Regular, not bold)</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:16px;">
+        <span style="font-size:11px;font-weight:700;color:#94a3b8;min-width:30px;text-align:right;">17px</span>
+        <span style="font-size:17px;font-weight:700;color:#f1f5f9;">Aa — Hourly production total badge value</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:16px;">
+        <span style="font-size:11px;font-weight:700;color:#94a3b8;min-width:30px;text-align:right;">18px</span>
+        <span style="font-size:18px;font-weight:700;color:#f1f5f9;">Aa — ProCon logo, Card title, Stat value, Badge att-rate value</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:16px;">
+        <span style="font-size:11px;font-weight:700;color:#94a3b8;min-width:30px;text-align:right;">22px</span>
+        <span style="font-size:22px;font-weight:700;color:#f1f5f9;">Aa — Operators grid values, Target vs Actual values, DHU badge</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:16px;">
+        <span style="font-size:11px;font-weight:700;color:#94a3b8;min-width:30px;text-align:right;">34px</span>
+        <span style="font-size:34px;font-weight:700;color:#00d4b8;">Aa — KpiCard main value</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="text-align:center;font-size:11px;color:#4b5563;padding:8px 0 24px;">
+    ProCon® Dashboard · Typography Reference · Generated 30/05/2026
+  </div>
+
+</div>
+</body>
+</html>

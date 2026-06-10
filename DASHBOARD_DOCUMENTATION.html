@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProCon Dashboard — Documentation</title>
+  <style>
+    :root {
+      --blue:    #1565C0;
+      --blue-lt: #E3EEF9;
+      --teal:    #00838F;
+      --green:   #16a34a;
+      --amber:   #d97706;
+      --red:     #dc2626;
+      --orange:  #ea580c;
+      --purple:  #7c3aed;
+      --text:    #1e293b;
+      --sub:     #475569;
+      --muted:   #94a3b8;
+      --border:  #c5d8ef;
+      --card:    #ffffff;
+      --bg:      #f0f6ff;
+      --code-bg: #1e293b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Inter, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; }
+
+    /* ── Header ── */
+    .site-header {
+      background: var(--blue);
+      color: #fff;
+      padding: 22px 40px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    }
+    .logo {
+      font-family: 'Futura', 'Century Gothic', Impact, sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      background: #fff;
+      padding: 4px 14px;
+      border-radius: 7px;
+    }
+    .logo span:first-child { color: #1A4F9C; }
+    .logo span:last-child  { color: #00AEEF; }
+    .site-header h1 { font-size: 18px; font-weight: 700; }
+    .site-header .sub { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+    .badge { background: rgba(255,255,255,0.18); border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 700; margin-left: auto; }
+
+    /* ── Layout ── */
+    .container { max-width: 1300px; margin: 0 auto; padding: 30px 30px 60px; }
+
+    /* ── TOC ── */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 28px; }
+    .toc h2 { font-size: 13px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+    .toc ol { padding-left: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 30px; }
+    .toc li { font-size: 13px; }
+    .toc a { color: var(--blue); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+
+    /* ── Section headings ── */
+    .section-title {
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--blue);
+      border-bottom: 3px solid var(--blue);
+      padding-bottom: 8px;
+      margin: 36px 0 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title .num {
+      background: var(--blue);
+      color: #fff;
+      border-radius: 50%;
+      width: 28px; height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+    }
+    h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 20px 0 10px; }
+    h4 { font-size: 13px; font-weight: 700; color: var(--sub); text-transform: uppercase; letter-spacing: 0.8px; margin: 16px 0 8px; }
+
+    /* ── Cards ── */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; margin-bottom: 14px; }
+    .card-blue { background: var(--blue-lt); border-color: #a8c8e8; }
+
+    /* ── Phase boxes ── */
+    .phase { border-left: 4px solid var(--blue); background: var(--card); border-radius: 0 10px 10px 0; padding: 14px 18px; margin-bottom: 10px; }
+    .phase h4 { color: var(--blue); margin: 0 0 8px; font-size: 12px; }
+    .phase.phase-green  { border-color: var(--green); }
+    .phase.phase-amber  { border-color: var(--amber); }
+    .phase.phase-orange { border-color: var(--orange); }
+    .phase h4.green  { color: var(--green); }
+    .phase h4.amber  { color: var(--amber); }
+    .phase h4.orange { color: var(--orange); }
+
+    /* ── Tables ── */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 10px; }
+    thead tr { background: var(--blue-lt); }
+    th { padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 2px solid var(--border); white-space: nowrap; }
+    td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) { background: #f8faff; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .tag-blue   { background: #dbeafe; color: #1d4ed8; }
+    .tag-green  { background: #dcfce7; color: #15803d; }
+    .tag-amber  { background: #fef3c7; color: #92400e; }
+    .tag-red    { background: #fee2e2; color: #b91c1c; }
+    .tag-purple { background: #ede9fe; color: #6d28d9; }
+    .tag-teal   { background: #ccfbf1; color: #0f766e; }
+    .tag-orange { background: #ffedd5; color: #c2410c; }
+    .tag-gray   { background: #f1f5f9; color: #475569; }
+
+    /* ── Code blocks ── */
+    pre {
+      background: var(--code-bg);
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 18px;
+      font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      overflow-x: auto;
+      margin: 10px 0 14px;
+      border: 1px solid #334155;
+    }
+    code {
+      background: #e8f0fb;
+      color: var(--blue);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+    }
+    pre code { background: none; color: inherit; padding: 0; }
+    .kw  { color: #93c5fd; }
+    .fn  { color: #6ee7b7; }
+    .str { color: #fcd34d; }
+    .cm  { color: #64748b; }
+    .num { color: #f9a8d4; }
+
+    /* ── Endpoint cards ── */
+    .endpoint {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 22px;
+    }
+    .endpoint-header {
+      background: var(--blue);
+      color: #fff;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .endpoint-header .method { background: rgba(255,255,255,0.22); border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 800; letter-spacing: 1px; }
+    .endpoint-header .path   { font-size: 14px; font-weight: 700; font-family: monospace; }
+    .endpoint-header .desc   { font-size: 12px; opacity: 0.8; margin-left: auto; }
+    .endpoint-body { background: var(--card); padding: 14px 16px; }
+
+    /* ── Layout diagram ── */
+    .layout-grid { display: grid; gap: 8px; }
+    .layout-row { display: flex; gap: 8px; }
+    .layout-cell {
+      background: var(--blue-lt);
+      border: 2px solid var(--blue);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--blue);
+      text-align: center;
+    }
+    .layout-cell.new  { background: #dcfce7; border-color: var(--green); color: var(--green); }
+    .layout-cell.full { flex: none; width: 100%; }
+    .layout-cell .sub-label { font-size: 10px; font-weight: 500; color: var(--sub); margin-top: 2px; }
+
+    /* ── Formula boxes ── */
+    .formula { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px 16px; margin: 8px 0; font-family: monospace; font-size: 13px; color: #78350f; }
+    .formula .label { font-size: 11px; font-weight: 700; color: var(--amber); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 800px) {
+      .toc ol { grid-template-columns: 1fr; }
+      .layout-row { flex-direction: column; }
+      .container { padding: 16px; }
+    }
+
+    /* ── Print ── */
+    @media print {
+      .site-header { position: relative; }
+      pre { font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ HEADER ═══════════════════════════════════════════ -->
+<header class="site-header">
+  <div class="logo"><span>Pro</span><span>Con</span><sup style="font-size:10px">®</sup></div>
+  <div>
+    <div class="site-header" style="all:unset;display:block">
+      <h1 style="color:#fff;font-size:18px;font-weight:800">Dashboard — Complete Documentation</h1>
+      <div class="sub">Frontend: Dashboard.jsx &nbsp;|&nbsp; Backend: routes/dashboard.js &nbsp;|&nbsp; Generated: 02 Jun 2026</div>
+    </div>
+  </div>
+  <div class="badge">ProCon v2026</div>
+</header>
+
+<div class="container">
+
+  <!-- ═══════════════════════════════ TABLE OF CONTENTS ═══════════════════════════════ -->
+  <div class="toc">
+    <h2>📋 Table of Contents</h2>
+    <ol>
+      <li><a href="#overview">Page Overview</a></li>
+      <li><a href="#state">State Variables</a></li>
+      <li><a href="#fetch-flow">API Fetch Flow &amp; Order</a></li>
+      <li><a href="#layout">Frontend Card Layout</a></li>
+      <li><a href="#calculations">Key Calculations</a></li>
+      <li><a href="#queries">SQL Query Reference</a></li>
+      <li><a href="#tables">Database Tables Summary</a></li>
+      <li><a href="#new-features">New Features Added</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════ 1. OVERVIEW ═══════════════════════════════ -->
+  <h2 class="section-title" id="overview"><span class="num">1</span> Page Overview</h2>
+  <div class="card card-blue">
+    <table>
+      <tr><th style="width:180px">Item</th><th>Detail</th></tr>
+      <tr><td><strong>Frontend file</strong></td><td><code>frontend/src/pages/Dashboard.jsx</code></td></tr>
+      <tr><td><strong>Backend file</strong></td><td><code>backend/src/routes/dashboard.js</code></td></tr>
+      <tr><td><strong>Purpose</strong></td><td>Real-time production line monitoring — filtered by Date, Shift, and Line</td></tr>
+      <tr><td><strong>Databases</strong></td><td><span class="tag tag-blue">masterDB</span> — masters/settings &nbsp; <span class="tag tag-teal">transDB</span> — transactions/production</td></tr>
+      <tr><td><strong>Theme</strong></td><td>Dark / Light toggle, stored in <code>localStorage('procon-theme')</code></td></tr>
+      <tr><td><strong>Auth</strong></td><td>Session loaded from <code>loadSession()</code> — provides <code>masterDB</code>, <code>transDB</code>, <code>username</code>, <code>companyName</code></td></tr>
+      <tr><td><strong>TTL Cache</strong></td><td>Backend caches <code>M_BundleSettings</code> result for 60 seconds to avoid repeated lookups</td></tr>
+      <tr><td><strong>Charts</strong></td><td>Recharts — <code>ComposedChart</code>, <code>BarChart</code>, <code>Bar</code>, <code>Line</code>, <code>Cell</code>, <code>LabelList</code></td></tr>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════ 2. STATE VARIABLES ═══════════════════════════════ -->
+  <h2 class="section-title" id="state"><span class="num">2</span> State Variables</h2>
+  <table>
+    <thead><tr><th>State</th><th>Type</th><th>Initial Value</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>dateInput</code></td><td>string</td><td>Today (ISO)</td><td>Selected date filter (YYYY-MM-DD)</td></tr>
+      <tr><td><code>shift</code></td><td>string</td><td><code>'001'</code></td><td>Selected shift code</td></tr>
+      <tr><td><code>lineCode</code></td><td>string</td><td><code>''</code></td><td>Selected production line code</td></tr>
+      <tr><td><code>lines</code></td><td>array</td><td><code>[]</code></td><td>Line dropdown options from <code>/lines</code></td></tr>
+      <tr><td><code>shifts</code></td><td>array</td><td><code>[]</code></td><td>Shift dropdown options from <code>/shifts</code></td></tr>
+      <tr><td><code>data</code></td><td>array</td><td><code>[]</code></td><td>Main production rows from <code>/production</code></td></tr>
+      <tr><td><code>efficiencyData</code></td><td>object</td><td><code>null</code></td><td>Efficiency result + flags + shift details from <code>/efficiency</code></td></tr>
+      <tr><td><code>wipPcs</code></td><td>number</td><td><code>0</code></td><td>WIP pieces count from <code>/wip</code></td></tr>
+      <tr><td><code>styleDetails</code></td><td>array</td><td><code>[]</code></td><td>Active production order (buyer/PO) from <code>/styledetails</code></td></tr>
+      <tr><td><code>lineWiseHourly</code></td><td>object</td><td><code>{section,data,allHours}</code></td><td>Hourly chart data from <code>/linewise-hourly</code></td></tr>
+      <tr><td><code>dhuData</code></td><td>array</td><td><code>[]</code></td><td>DHU (Defects per Hundred Units) from <code>/dhu</code></td></tr>
+      <tr><td><code>qcDefects</code></td><td>array</td><td><code>[]</code></td><td>Top defect breakdown from <code>/qc-defects</code></td></tr>
+      <tr><td><code>histogramData</code></td><td>object</td><td><code>{data,target,ucl,lcl}</code></td><td>Operation-wise histogram from <code>/histogram</code></td></tr>
+      <tr><td><code>topOperators</code></td><td>object</td><td><code>{top:[],bottom:[]}</code></td><td>Top/Bottom 5 operators by efficiency from <code>/top-operators</code></td></tr>
+      <tr><td><code>topRwOperators</code></td><td>array</td><td><code>[]</code></td><td>Top 5 rework operators from <code>/top-rw-operators</code> <span class="tag tag-green">NEW</span></td></tr>
+      <tr><td><code>bdNwData</code></td><td>object</td><td><code>{bd:[],nw:[]}</code></td><td>BreakDown / NoWork summary from <code>/bd-nw</code></td></tr>
+      <tr><td><code>refreshInfo</code></td><td>object</td><td><code>null</code></td><td>Last refresh metadata (line, date, shift, user, time)</td></tr>
+      <tr><td><code>loading</code></td><td>bool</td><td><code>false</code></td><td>Shows loading spinner during main fetch</td></tr>
+      <tr><td><code>error</code></td><td>string</td><td><code>null</code></td><td>Error message displayed in red banner</td></tr>
+      <tr><td><code>theme</code></td><td>string</td><td>localStorage</td><td><code>'dark'</code> or <code>'light'</code></td></tr>
+      <tr><td colspan="4" style="background:#f8faff;font-size:12px;color:#64748b;padding:6px 12px"><strong>Modal states (6 pairs)</strong> — show/data/loading for: HourlyReport, BdReport, NwReport, WipReport, AlertReport, OprNptReport</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ═══════════════════════════════ 3. FETCH FLOW ═══════════════════════════════ -->
+  <h2 class="section-title" id="fetch-flow"><span class="num">3</span> API Fetch Flow &amp; Order</h2>
+
+  <div class="phase">
+    <h4>PHASE 1 — On Page Load (automatic, no user interaction)</h4>
+    <table>
+      <tr><th>API</th><th>Trigger</th><th>Sets</th></tr>
+      <tr><td><code>GET /api/dashboard/lines</code></td><td><code>useEffect([masterDB])</code></td><td><code>lines</code></td></tr>
+      <tr><td><code>GET /api/dashboard/shifts</code></td><td><code>useEffect([masterDB])</code></td><td><code>shifts</code></td></tr>
+    </table>
+  </div>
+
+  <div class="phase phase-green">
+    <h4 class="green">PHASE 2 — On Refresh Click (or auto if all 3 filters filled on load)</h4>
+    <p style="font-size:12px;color:#475569;margin-bottom:10px"><strong>Step 1 — Parallel (blocking — both must succeed):</strong></p>
+    <table>
+      <tr><th>API</th><th>Sets</th><th>Note</th></tr>
+      <tr><td><code>GET /api/dashboard/production</code></td><td><code>data</code></td><td>Returns 400 if no rows found</td></tr>
+      <tr><td><code>GET /api/dashboard/efficiency</code></td><td><code>efficiencyData</code></td><td>Returns flags, shiftDetails, manDays</td></tr>
+    </table>
+    <p style="font-size:12px;color:#475569;margin: 10px 0 6px"><strong>Step 2 — Fire-and-forget (non-blocking, all parallel):</strong></p>
+    <table>
+      <tr><th>API</th><th>Sets</th></tr>
+      <tr><td><code>GET /api/dashboard/wip</code></td><td><code>wipPcs</code></td></tr>
+      <tr><td><code>GET /api/dashboard/styledetails</code></td><td><code>styleDetails</code></td></tr>
+      <tr><td><code>GET /api/dashboard/dhu</code></td><td><code>dhuData</code></td></tr>
+      <tr><td><code>GET /api/dashboard/qc-defects</code></td><td><code>qcDefects</code></td></tr>
+      <tr><td><code>GET /api/dashboard/histogram</code></td><td><code>histogramData</code></td></tr>
+      <tr><td><code>GET /api/dashboard/top-operators</code></td><td><code>topOperators</code></td></tr>
+      <tr><td><code>GET /api/dashboard/linewise-hourly</code></td><td><code>lineWiseHourly</code></td></tr>
+      <tr><td><code>GET /api/dashboard/bd-nw</code></td><td><code>bdNwData</code></td></tr>
+      <tr><td><code>GET /api/dashboard/top-rw-operators</code> <span class="tag tag-green">NEW</span></td><td><code>topRwOperators</code></td></tr>
+    </table>
+  </div>
+
+  <div class="phase phase-amber">
+    <h4 class="amber">PHASE 3 — On Modal Open (lazy, only when user clicks)</h4>
+    <table>
+      <tr><th>Trigger</th><th>API</th><th>Sets</th></tr>
+      <tr><td>Click "View Report" on Hourly Production</td><td><code>GET /hourly-opr-operation</code></td><td><code>oprReportData</code></td></tr>
+      <tr><td>Click "View Report" on BreakDown</td><td><code>GET /bd-nw-detail?type=bd</code></td><td><code>bdReportData</code></td></tr>
+      <tr><td>Click "View Report" on NoWork</td><td><code>GET /bd-nw-detail?type=nw</code></td><td><code>nwReportData</code></td></tr>
+      <tr><td>Click WIP Pcs number</td><td><code>GET /wip-report</code></td><td><code>wipReportData</code></td></tr>
+      <tr><td>Click Alert numbers (Received/Attended/Pending)</td><td><code>GET /alert-report?alertType=&amp;reportType=</code></td><td><code>alertReportData</code></td></tr>
+      <tr><td>Click OPR NPT value</td><td><code>GET /oprnpt-report</code></td><td><code>oprNptReportData</code></td></tr>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════ 4. LAYOUT ═══════════════════════════════ -->
+  <h2 class="section-title" id="layout"><span class="num">4</span> Frontend Card Layout</h2>
+  <p style="color:var(--sub);font-size:12px;margin-bottom:14px">Cards only appear when their data array is non-empty. Row 1 always shows when <code>data.length &gt; 0</code>.</p>
+
+  <div class="layout-grid">
+    <!-- Header -->
+    <div class="layout-row">
+      <div class="layout-cell full" style="background:#1565C0;color:#fff;border-color:#1565C0">
+        🔵 Header — ProCon logo · Company name · Date / Shift / Line filters · Refresh · Theme · Logout
+        <div class="sub-label" style="color:rgba(255,255,255,0.7)">Sticky top bar, always visible</div>
+      </div>
+    </div>
+    <!-- Row 1 -->
+    <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-top:8px">Row 1 — Operators &amp; Production Summary</div>
+    <div class="layout-row">
+      <div class="layout-cell" style="flex:1">👤 Operators<div class="sub-label">Workstations · Att Rate · Man Days</div></div>
+      <div class="layout-cell" style="flex:2">📊 Target vs Actual<div class="sub-label">Pcs · Output/hr · Eff%</div></div>
+      <div class="layout-cell" style="flex:1">≈ Feeding — WIP<div class="sub-label">Feeding · WIP · Est.Output · Productivity</div></div>
+    </div>
+    <!-- Row 2 -->
+    <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-top:8px">Row 2 — Active Production Order</div>
+    <div class="layout-row">
+      <div class="layout-cell full">📋 Active Production Order<div class="sub-label">Buyer · Style · PO · Date · Ex-Factory · Order Qty · Running Days · Cum Prodn</div></div>
+    </div>
+    <!-- Row 3 -->
+    <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-top:8px">Row 3 — Hourly Production + OEE</div>
+    <div class="layout-row">
+      <div class="layout-cell" style="flex:2">📈 Hourly Production (flex: 2)<div class="sub-label">Bar chart + target line per hour · View Report button</div></div>
+      <div class="layout-cell new" style="flex:1">🎯 OEE Overview (flex: 1) ★ NEW<div class="sub-label">Availability · Performance · Quality · OEE Score gauge</div></div>
+    </div>
+    <!-- Row 4 -->
+    <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-top:8px">Row 4 — Histogram</div>
+    <div class="layout-row">
+      <div class="layout-cell full">📊 Histogram — Operation-wise Production<div class="sub-label">All sewing + QC operations vs UCL/BPT/LCL reference lines</div></div>
+    </div>
+    <!-- Row 5 -->
+    <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-top:8px">Row 5 — Top &amp; Low Performing Operators</div>
+    <div class="layout-row">
+      <div class="layout-cell full">👍 Top Performers (top 5) &nbsp;|&nbsp; 👎 Needs Improvement (bottom 5)<div class="sub-label">Ranked by individual efficiency % · operation names shown</div></div>
+    </div>
+    <!-- Row 6 -->
+    <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-top:8px">Row 6 — Quality Info + DHU</div>
+    <div class="layout-row">
+      <div class="layout-cell" style="flex:1">✅ Quality Info<div class="sub-label">EndLine CHK · AQL · Finishing · Packing — Pass/RW/RJ with %</div></div>
+      <div class="layout-cell" style="flex:1">🔢 DHU — Defects per Hundred Units<div class="sub-label">EndLine Checking — Checked · RW · RJ with DHU%</div></div>
+    </div>
+    <!-- Row 7 -->
+    <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-top:8px">Row 7 — Defect Analysis + Top 5 RW Operators</div>
+    <div class="layout-row">
+      <div class="layout-cell" style="flex:1">📉 Defect Analysis<div class="sub-label">Top 5 defects by type — horizontal bar chart</div></div>
+      <div class="layout-cell new" style="flex:1">🔁 Top 5 RW Operators ★ NEW<div class="sub-label">EndLine CHK — ranked by rework pieces + RW%</div></div>
+    </div>
+    <!-- Row 8 -->
+    <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-top:8px">Row 8 — BreakDown &amp; NoWork</div>
+    <div class="layout-row">
+      <div class="layout-cell" style="flex:1;border-color:var(--red);background:#fff0f0;color:var(--red)">🔴 BreakDown<div class="sub-label">WsNo · Reason · BD Mins · Total · View Report</div></div>
+      <div class="layout-cell" style="flex:1;border-color:var(--amber);background:#fffbeb;color:var(--amber)">🟡 NoWork<div class="sub-label">WsNo · Reason · NW Mins · Total · View Report</div></div>
+    </div>
+    <!-- Row 9 -->
+    <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-top:8px">Row 9 — DownTime Analysis + Alerts</div>
+    <div class="layout-row">
+      <div class="layout-cell" style="flex:1">⏱ DownTime Analysis<div class="sub-label">Idle · NoWork · BD · RW · OPR NPT · Line NPT — % of clocked mins</div></div>
+      <div class="layout-cell" style="flex:1">🔔 Maintenance Alerts + Supervisor Alerts<div class="sub-label">Received · Attended · Pending — click to drill down</div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ 5. CALCULATIONS ═══════════════════════════════ -->
+  <h2 class="section-title" id="calculations"><span class="num">5</span> Key Calculations (Frontend)</h2>
+
+  <h3>5.1 — Output Pieces</h3>
+  <p style="font-size:13px;color:var(--sub);margin-bottom:8px">Determined by <code>efficiencyData.flags</code>. Whichever section flag = 1, its Line-level pcs (regular + OT) are summed.</p>
+  <table>
+    <thead><tr><th>Flag</th><th>Source Field</th><th>Label Shown</th></tr></thead>
+    <tr><td><code>I_L_Output_Sewing = 1</code></td><td><code>LineSWGSewnPcs + LineSWGSewnPcsOT</code></td><td>Sewing</td></tr>
+    <tr><td><code>I_L_Output_QC = 1</code></td><td><code>LineCHKPassedPcs + LineCHKPassedPcsOT</code></td><td>EndLine Checking</td></tr>
+    <tr><td><code>I_L_Output_AQL = 1</code></td><td><code>LineAQLPassedPcs + LineAQLPassedPcsOT</code></td><td>AQL</td></tr>
+    <tr><td><code>I_L_Output_Finishing = 1</code></td><td><code>LineFINPassedPcs + LineFINPassedPcsOT</code></td><td>Finishing</td></tr>
+    <tr><td><code>I_L_Output_Packing = 1</code></td><td><code>LinePKGPassedPcs + LinePKGPassedPcsOT</code></td><td>Packing</td></tr>
+    <tr><td>No flags set (fallback)</td><td><code>LineSWGSewnPcs + LineSWGSewnPcsOT</code></td><td>Sewing</td></tr>
+  </table>
+
+  <h3>5.2 — Target vs Actual Efficiency (taEff)</h3>
+  <div class="formula">
+    <div class="label">SameDate (live shift)</div>
+    fCurrTargetPcs = (LineTargetPcs / ShiftTime) × AvailableMinsWithBreak
+  </div>
+  <div class="formula">
+    <div class="label">NotSameDate (historical)</div>
+    fCurrTargetPcs = LineTargetPcs (full)
+  </div>
+  <div class="formula">
+    <div class="label">Result</div>
+    taEff = (outputPcs / fCurrTargetPcs) × 100
+  </div>
+
+  <h3>5.3 — Efficiency % (grsEff / onsEff)</h3>
+  <div class="formula">
+    <div class="label">Prefers backend value</div>
+    if efficiencyData.efficiency &gt; 0 → use it directly
+  </div>
+  <div class="formula">
+    <div class="label">Fallback (frontend)</div>
+    grsEff = totalEarnedMinutes / totalWorkedMins × 100<br>
+    onsEff = totalEarnedMinutes / (totalWorkedMins − offStandardMins) × 100
+  </div>
+
+  <h3>5.4 — OEE Calculations <span class="tag tag-green">NEW</span></h3>
+  <table>
+    <thead><tr><th>Metric</th><th>Formula</th><th>Source Fields</th></tr></thead>
+    <tr>
+      <td><strong>ShiftTimeTillNow</strong></td>
+      <td>SameDate → <code>AvailableMinsWithBreak</code><br>NotSameDate → <code>ShiftTime</code></td>
+      <td><code>efficiencyData.shiftDetails</code></td>
+    </tr>
+    <tr>
+      <td><strong>Availability</strong></td>
+      <td><code>totalWorkedMins / (shiftTimeTillNow × activeWS) × 100</code></td>
+      <td>All section <code>WorkedMins</code> summed</td>
+    </tr>
+    <tr>
+      <td><strong>Performance</strong></td>
+      <td><code>totalEarnedMinutes / totalWorkedMins × 100</code></td>
+      <td>All section <code>PcsSAM</code> / <code>WorkedMins</code></td>
+    </tr>
+    <tr>
+      <td><strong>Quality</strong></td>
+      <td><code>SectionCHKPassedPcs / SectionCHKLoadingPcs × 100</code></td>
+      <td>EndLine CHK passed vs loaded</td>
+    </tr>
+    <tr>
+      <td><strong>OEE Score</strong></td>
+      <td><code>(Availability/100) × (Performance/100) × (Quality/100) × 100</code></td>
+      <td>Composite</td>
+    </tr>
+  </table>
+
+  <h3>5.5 — DownTime Analysis Percentages</h3>
+  <div class="formula">
+    Clocked Minutes = ManDayMinutes × activeWS<br>
+    Each category % = (categoryMins / ClockedMinutes) × 100
+  </div>
+
+  <h3>5.6 — Derived Values</h3>
+  <table>
+    <thead><tr><th>Variable</th><th>Formula</th></tr></thead>
+    <tr><td><code>totalWS</code></td><td>Sum of CapacityWs across all sections (SWG+CHK+AQL+FIN+PKG)</td></tr>
+    <tr><td><code>activeWS</code></td><td>Sum of ActualWs across all sections</td></tr>
+    <tr><td><code>prsOprs</code></td><td><code>CurrNoOfOprsLoggedIn + CurrNoOfQcOprsLoggedIn</code></td></tr>
+    <tr><td><code>attRate</code></td><td><code>(prsOprs / activeWS) × 100</code></td></tr>
+    <tr><td><code>targetOutputPerHr</code></td><td><code>LineTargetPcs / LineNoOfHrs</code></td></tr>
+    <tr><td><code>actualOutputPerHr</code></td><td><code>(outputPcs / ManDayMinutes) × 60</code></td></tr>
+    <tr><td><code>estOutput</code></td><td>SameDate: <code>outputPcs + ((shiftTime − elapsedMins) × (outputPcs / elapsedMins))</code></td></tr>
+    <tr><td><code>productivityPerPerson</code></td><td><code>outputPcs / manDays</code></td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════ 6. QUERIES ═══════════════════════════════ -->
+  <h2 class="section-title" id="queries"><span class="num">6</span> SQL Query Reference</h2>
+
+  <!-- /lines -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/lines</span>
+      <span class="desc">Line dropdown — Phase 1</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>DB</th><th>Tables</th><th>Filter</th><th>Returns</th></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>M_LineHd</code></td><td><code>LineType = 'S'</code> (Sewing only)</td><td>LineCode, ShortName, LineIndex</td></tr>
+      </table>
+<pre><code><span class="kw">SELECT</span> LineCode, ShortName, LineIndex
+<span class="kw">FROM</span> [masterDB]..M_LineHd
+<span class="kw">WHERE</span> LineType = <span class="str">'S'</span>
+<span class="kw">ORDER BY</span> LineIndex</code></pre>
+    </div>
+  </div>
+
+  <!-- /shifts -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/shifts</span>
+      <span class="desc">Shift dropdown — Phase 1</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>DB</th><th>Tables</th><th>Filter</th><th>Returns</th></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>M_Shift</code></td><td><code>Active = 'Y'</code></td><td>ShiftCode, ShiftName</td></tr>
+      </table>
+<pre><code><span class="kw">SELECT</span> ShiftCode, ShiftName
+<span class="kw">FROM</span> [masterDB]..M_Shift
+<span class="kw">WHERE</span> Active = <span class="str">'Y'</span>
+<span class="kw">ORDER BY</span> ShiftCode</code></pre>
+    </div>
+  </div>
+
+  <!-- /production -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/production</span>
+      <span class="desc">Main production aggregation — Phase 2 (blocking)</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="font-size:12px;color:#475569;margin-bottom:10px">The largest query on the page — 1 main query with 3 embedded sub-queries. Returns ~100 columns per line.</p>
+      <table>
+        <tr><th>DB</th><th>Table</th><th>Role</th></tr>
+        <tr><td><span class="tag tag-teal">transDB</span></td><td><code>T_FactLineProduction</code></td><td>Main aggregation source</td></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>M_LineHd</code></td><td>JOIN — line name &amp; index</td></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>M_LineDt</code></td><td>Sub-query — sewing operators logged in</td></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>M_QcLineDt</code></td><td>Sub-query — QC operators logged in</td></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>M_Hrs</code></td><td>Sub-query — number of shift hours for line/weekday</td></tr>
+      </table>
+      <h4>Column Groups Returned</h4>
+      <table>
+        <tr><th>Group</th><th>Fields (SWG + CHK + AQL + FIN + PKG)</th></tr>
+        <tr><td>Capacity / Attendance</td><td>CapacityWs, ActualWs, OprsAtt, OprsLoggedIn</td></tr>
+        <tr><td>Output Pieces</td><td>LineSWGSewnPcs, LineCHKPassedPcs, LineAQLPassedPcs, LineFINPassedPcs, LinePKGPassedPcs (+ OT variants)</td></tr>
+        <tr><td>SAM (Earned Minutes)</td><td>SectionSWGPcsSAM, SectionCHKPcsSAM … (÷60 from seconds)</td></tr>
+        <tr><td>Time Losses</td><td>WorkedMins, IdleTime, NWTime, BDTime, RwTime, NPTimeLine, NPTimeOPR (all ÷60)</td></tr>
+        <tr><td>Quality</td><td>CHKLoadingPcs, CHKPassedPcs, CHKReworkPcs, CHKRejectedPcs … (AQL/FIN/PKG same)</td></tr>
+        <tr><td>Alerts</td><td>MechAlertReceived, MechAlertAttended, SuprAlertReceived, SuprAlertAttended</td></tr>
+        <tr><td>Live counts</td><td>CurrNoOfOprsLoggedIn, CurrNoOfQcOprsLoggedIn, LineNoOfHrs</td></tr>
+      </table>
+      <p style="font-size:11px;color:var(--red);margin-top:8px">⚠ Returns <strong>HTTP 400</strong> if 0 rows found — the entire dashboard stays blank.</p>
+    </div>
+  </div>
+
+  <!-- /efficiency -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/efficiency</span>
+      <span class="desc">Efficiency + OEE flags — Phase 2 (blocking) — 5 sequential queries</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>#</th><th>Query</th><th>Table</th><th>Purpose</th><th>Only when</th></tr>
+        <tr><td>4a</td><td>SameDate Check</td><td><code>M_ShiftHd</code></td><td>Is selected shift currently active?</td><td>date = today</td></tr>
+        <tr><td>4b</td><td>Break Minutes</td><td><code>M_ShiftLineBreak</code></td><td>Break mins elapsed so far</td><td>SameDate = 1</td></tr>
+        <tr><td>4c</td><td>Eff Settings</td><td><code>M_BundleSettings</code></td><td>Config string (cached 60s)</td><td>Always</td></tr>
+        <tr><td>4d</td><td>Production Data</td><td><code>T_FactLineProduction</code> + <code>M_LineDt</code></td><td>SAM, WorkedMins, NPT, etc.</td><td>Always</td></tr>
+        <tr><td>4e</td><td>Shift Time</td><td><code>M_Shift</code></td><td>Total shift duration (minutes)</td><td>Always</td></tr>
+      </table>
+      <h4>Key flags returned in response</h4>
+      <table>
+        <tr><th>Flag</th><th>Value</th><th>Meaning</th></tr>
+        <tr><td><code>I_L_SameDate</code></td><td>0 / 1</td><td>1 = live shift currently running → pro-rate targets</td></tr>
+        <tr><td><code>I_L_NotSameDate</code></td><td>0 / 1</td><td>1 = historical date → use full target</td></tr>
+        <tr><td><code>I_L_Output_*</code></td><td>0 / 1</td><td>Which section is the output section (Sewing/QC/AQL/FIN/PKG)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- /styledetails -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/styledetails</span>
+      <span class="desc">Active Production Order card — 3 sequential queries</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>Step</th><th>Table</th><th>What it gets</th></tr>
+        <tr><td>1</td><td><code>T_FactLineProduction</code></td><td>StyleCodeStg &amp; PoSlNoStg (comma-separated active style codes)</td></tr>
+        <tr><td>2</td><td><code>V_StylePoHd</code> (masterDB)</td><td>Buyer, StyleNo, PoNo, PoDate, OrderQty, ExFactoryDate</td></tr>
+        <tr><td>3</td><td><code>T_FactStyleProduction</code></td><td>CumPrdnPcs, RunningDays (from financial year start)</td></tr>
+      </table>
+      <p style="font-size:11px;color:var(--sub);margin-top:6px">Financial Year: Indian FY — April to March. Only rows with <code>CumPrdnPcs &gt; 0</code> are shown.</p>
+    </div>
+  </div>
+
+  <!-- /dhu -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/dhu</span>
+      <span class="desc">DHU card — month-specific table</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>DB</th><th>Tables</th><th>Filter</th></tr>
+        <tr><td><span class="tag tag-teal">transDB</span></td><td><code>T_QcProductionDt_{Jan…Dec}</code></td><td>ProcessCode IN ('004','005')</td></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>M_QcOperationSeq</code>, <code>M_QcOperation</code></td><td>JOIN for ProcessCode</td></tr>
+      </table>
+      <p style="font-size:11px;color:var(--sub);margin-top:6px">ProcessCode <code>004</code> = EndLine Checking, <code>005</code> = AQL. DHU % = (RW+RJ) / Checked × 100 — calculated in frontend.</p>
+    </div>
+  </div>
+
+  <!-- /qc-defects -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/qc-defects</span>
+      <span class="desc">Defect Analysis card — ordered by defect count DESC</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>DB</th><th>Tables</th><th>Filter</th></tr>
+        <tr><td><span class="tag tag-teal">transDB</span></td><td><code>T_QcProductionDt_{Month}</code></td><td>ProcessCode = '004' (EndLine CHK only)</td></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>M_QcOperationSeq</code>, <code>M_QcOperation</code>, <code>M_Defects</code></td><td>JOIN for defect description</td></tr>
+      </table>
+      <p style="font-size:11px;color:var(--sub);margin-top:6px">Returns <code>DefectsDesc</code> + <code>DefectPcs</code> (= ReworkPcs + RejectedPcs). Frontend shows top 5.</p>
+    </div>
+  </div>
+
+  <!-- /histogram -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/histogram</span>
+      <span class="desc">Histogram card — 3 sequential queries</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>Step</th><th>Table</th><th>Gets</th></tr>
+        <tr><td>1</td><td><code>T_FactLineProduction</code></td><td>LineTargetPcs → UCL = Target, BPT = 80%, LCL = 60%</td></tr>
+        <tr><td>2</td><td><code>T_ProductionHd_{Month}</code> + <code>M_OperationSeq</code> + <code>M_Operation</code></td><td>Sewing operations — SewnPcs per operation</td></tr>
+        <tr><td>3</td><td><code>T_QcProductionHd_{Month}</code> + <code>M_QcOperationSeq</code> + <code>M_QcOperation</code></td><td>QC operations — PassedPcs per operation</td></tr>
+      </table>
+      <p style="font-size:11px;color:var(--sub);margin-top:6px">Combined sewing + QC operations displayed in sequence order. Bar color: Green ≥ UCL, Yellow ≥ BPT, Red &lt; BPT.</p>
+    </div>
+  </div>
+
+  <!-- /linewise-hourly -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/linewise-hourly</span>
+      <span class="desc">Hourly Production chart — 4 sequential queries</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>Step</th><th>Table</th><th>Gets</th></tr>
+        <tr><td>1</td><td><code>M_BundleSettings</code> (cached)</td><td>Determines output section (Sewing/CHK/AQL/FIN/PKG)</td></tr>
+        <tr><td>2a (Sewing)</td><td><code>T_ProductionHD_{Month}</code> + <code>M_OperationSeq</code> + <code>M_LineHd</code></td><td>SewnPcs per line per hour (StyleFinOpr='Y')</td></tr>
+        <tr><td>2b (QC path)</td><td><code>T_QcProductionHD_{Month}</code> + <code>M_QcOperationSeq</code> + <code>M_LineHd</code></td><td>PassedPcs per line per hour (QcStyleFinOpr='Y')</td></tr>
+        <tr><td>3</td><td><code>T_FactLineProduction</code> + <code>M_Hrs</code></td><td>LineTargetPcs / LineNoOfHrs = TargetPerHr</td></tr>
+        <tr><td>4</td><td><code>M_Hrs</code></td><td>All hour slots for shift/weekday (ensures empty hours show on X-axis)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- /top-operators -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/top-operators</span>
+      <span class="desc">Top &amp; Low Performing Operators — version-aware query</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>DB</th><th>Tables</th><th>Note</th></tr>
+        <tr><td><span class="tag tag-teal">transDB</span></td><td><code>T_EmpLoginDt_{Month}</code></td><td>PcsSam + AvailMins per operator</td></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>M_Employee</code></td><td>Name + EmployeeNo (Active='Y' only)</td></tr>
+        <tr><td><span class="tag tag-teal">transDB</span></td><td><code>T_ProductionDt_{Month}</code> + <code>M_Operation</code></td><td>Operation names (STRING_AGG or FOR XML PATH)</td></tr>
+      </table>
+      <div class="formula">
+        Eff% per operator = SUM(PcsSam) / SUM(AvailMins) × 100<br>
+        Top 5 = first 5 (highest Eff)&nbsp;&nbsp;|&nbsp;&nbsp;Bottom 5 = last 5 from remaining (reversed)
+      </div>
+      <p style="font-size:11px;color:var(--sub)">SQL Server version check: &gt;= 2017 uses STRING_AGG; older uses STUFF + FOR XML PATH.</p>
+    </div>
+  </div>
+
+  <!-- /top-rw-operators NEW -->
+  <div class="endpoint">
+    <div class="endpoint-header" style="background:var(--green)">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/top-rw-operators</span>
+      <span class="desc">Top 5 Rework Operators ★ NEW</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>DB</th><th>Tables</th><th>Filter</th></tr>
+        <tr><td><span class="tag tag-teal">transDB</span></td><td><code>T_QcProductionDt_{Month}</code></td><td>ProcessCode = '004' (EndLine CHK)</td></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>M_QcOperationSeq</code>, <code>M_QcOperation</code></td><td>JOIN to get ProcessCode</td></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>M_Employee</code></td><td>LEFT JOIN for name/number</td></tr>
+      </table>
+<pre><code><span class="kw">SELECT TOP 5</span>
+  <span class="fn">ISNULL</span>(e.EmployeeName, a.EmployeeCode) <span class="kw">AS</span> EmployeeName,
+  <span class="fn">ISNULL</span>(e.EmployeeNo, <span class="str">''</span>)               <span class="kw">AS</span> EmployeeNo,
+  <span class="fn">SUM</span>(a.ReWorkPcs)  <span class="kw">AS</span> ReworkPcs,
+  <span class="fn">SUM</span>(a.CheckedPcs) <span class="kw">AS</span> CheckedPcs,
+  <span class="kw">CASE WHEN</span> <span class="fn">SUM</span>(a.CheckedPcs) &gt; <span class="num">0</span>
+       <span class="kw">THEN</span> <span class="fn">ROUND</span>(<span class="fn">SUM</span>(a.ReWorkPcs) * <span class="num">100.0</span> / <span class="fn">SUM</span>(a.CheckedPcs), <span class="num">1</span>)
+       <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END AS</span> RwPct
+<span class="kw">FROM</span> [transDB]..[T_QcProductionDt_{Month}] a
+<span class="kw">INNER JOIN</span> [masterDB]..M_QcOperationSeq b <span class="kw">ON</span> ...
+<span class="kw">INNER JOIN</span> [masterDB]..M_QcOperation c <span class="kw">ON</span> c.ProcessCode = <span class="str">'004'</span>
+<span class="kw">LEFT JOIN</span>  [masterDB]..M_Employee e <span class="kw">ON</span> a.EmployeeCode = e.EmployeeCode
+<span class="kw">WHERE</span> <span class="fn">CAST</span>(a.ProdnDate <span class="kw">AS DATE</span>) = <span class="fn">CONVERT</span>(<span class="kw">DATE</span>, @qdate, <span class="num">103</span>)
+  <span class="kw">AND</span> a.ShiftCode = @shiftCode <span class="kw">AND</span> a.LineCode = @lineCode
+<span class="kw">GROUP BY</span> a.EmployeeCode, e.EmployeeName, e.EmployeeNo
+<span class="kw">HAVING</span> <span class="fn">SUM</span>(a.ReWorkPcs) &gt; <span class="num">0</span>
+<span class="kw">ORDER BY</span> <span class="fn">SUM</span>(a.ReWorkPcs) <span class="kw">DESC</span></code></pre>
+    </div>
+  </div>
+
+  <!-- /wip -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/wip</span>
+      <span class="desc">WIP Pieces count (summary)</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>DB</th><th>Tables</th><th>Filter</th></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>T_Tags</code>, <code>M_StyleHd</code>, <code>M_StylePoHd</code>, <code>M_OperationSeq</code></td><td>Status='I', TagType='BD', StyleClosed='N', PoClosed='N', LastOprSeqNo &lt; MAX</td></tr>
+      </table>
+      <p style="font-size:11px;color:var(--sub);margin-top:6px">WIP = in-progress bundles not yet at the final operation, issued to this line, for open styles/POs.</p>
+    </div>
+  </div>
+
+  <!-- /bd-nw -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/bd-nw</span>
+      <span class="desc">BreakDown + NoWork summary — 2 parallel queries</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>Type</th><th>Table</th><th>Joined with</th></tr>
+        <tr><td>BreakDown</td><td><code>T_DownTimeHd_{Month}</code></td><td><code>M_LineDt</code> (WsNo), <code>M_DownTimeReason</code> (ReasonName)</td></tr>
+        <tr><td>NoWork</td><td><code>T_NoWorkTimeHd_{Month}</code></td><td>Same joins</td></tr>
+      </table>
+      <p style="font-size:11px;color:var(--sub);margin-top:6px">TotalSecs ÷ 60 → BDMins. Grouped by workstation + reason.</p>
+    </div>
+  </div>
+
+  <!-- /bd-nw-detail -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/bd-nw-detail</span>
+      <span class="desc">BD or NW detail report modal — type=bd or type=nw</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>DB</th><th>Tables</th><th>Role</th></tr>
+        <tr><td><span class="tag tag-teal">transDB</span></td><td><code>T_DownTimeHd_{Month}</code> or <code>T_NoWorkTimeHd_{Month}</code></td><td>Main records</td></tr>
+        <tr><td><span class="tag tag-blue">masterDB</span></td><td><code>V_Employee</code>, <code>M_LineHd</code>, <code>M_LineDt</code>, <code>M_DownTimeReason</code></td><td>JOINs</td></tr>
+        <tr><td><span class="tag tag-teal">transDB</span></td><td><code>T_EmpLoginDt_{Month}</code></td><td>Sub-query: HrsWorked for operator on that day</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- /alert-report -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/alert-report</span>
+      <span class="desc">Alert detail modal — alertType=mech/supr, reportType=received/attended/pending</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>alertType</th><th>Table Used</th></tr>
+        <tr><td>mech</td><td><code>T_MAlert</code> (Maintenance alerts)</td></tr>
+        <tr><td>supr</td><td><code>T_SAlert</code> (Supervisor alerts)</td></tr>
+      </table>
+      <table style="margin-top:8px">
+        <tr><th>reportType</th><th>Extra filter</th><th>Extra columns</th></tr>
+        <tr><td>received</td><td>None</td><td>Attended = Yes/No</td></tr>
+        <tr><td>attended</td><td><code>AttendedDateTime IS NOT NULL</code></td><td>Mechanic name, attended time, diff time</td></tr>
+        <tr><td>pending</td><td><code>AttendedDateTime IS NULL</code></td><td>Attended = No (hardcoded)</td></tr>
+      </table>
+      <p style="font-size:11px;color:var(--sub);margin-top:6px">Joined with: <code>M_Employee</code> (×2 for attended), <code>M_LineDt</code>, <code>M_Section</code>, <code>M_Process</code></p>
+    </div>
+  </div>
+
+  <!-- /wip-report -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method">GET</span>
+      <span class="path">/api/dashboard/wip-report</span>
+      <span class="desc">WIP operation-wise chart modal — 4 steps, most complex report</span>
+    </div>
+    <div class="endpoint-body">
+      <table>
+        <tr><th>Step</th><th>Tables</th><th>What it gets</th></tr>
+        <tr><td>1</td><td><code>T_FactLineProduction</code></td><td>StyleCodeStg for active styles</td></tr>
+        <tr><td>2 (loop per style)</td><td><code>M_OperationSeq</code>, <code>M_Operation</code>, <code>M_Group</code></td><td>All operations in order</td></tr>
+        <tr><td>3</td><td><code>T_Tags</code>, <code>M_StyleHd</code>, <code>V_StylePoHd</code>, <code>M_OperationSeq</code></td><td>Bundle location data (COprCodeStg, COprPcsStg)</td></tr>
+        <tr><td>4 (Node.js)</td><td>—</td><td>WIP placement algorithm</td></tr>
+      </table>
+      <div class="formula">
+        <div class="label">WIP Placement Rule</div>
+        If cPcs[LastOprSeqNo op] &gt;= BundlePcs → bundle FINISHED → place at NEXT op<br>
+        Otherwise → bundle IS AT that op → place at SAME op<br>
+        WIP Pcs = BundlePcs − ProdnPcs (partial pieces already done at placement op)
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ 7. TABLES SUMMARY ═══════════════════════════════ -->
+  <h2 class="section-title" id="tables"><span class="num">7</span> Database Tables Summary</h2>
+  <table>
+    <thead><tr><th>Table</th><th>DB</th><th>Used By</th><th>Purpose</th></tr></thead>
+    <tr><td><code>T_FactLineProduction</code></td><td><span class="tag tag-teal">trans</span></td><td>production, efficiency, histogram, linewise-hourly, styledetails, wip-report</td><td>Core production aggregation fact table</td></tr>
+    <tr><td><code>T_FactStyleProduction</code></td><td><span class="tag tag-teal">trans</span></td><td>styledetails</td><td>Cumulative production per style/PO</td></tr>
+    <tr><td><code>T_ProductionHd_{Month}</code></td><td><span class="tag tag-teal">trans</span></td><td>histogram, linewise-hourly, hourly-opr-operation</td><td>Sewing hourly production header</td></tr>
+    <tr><td><code>T_ProductionDt_{Month}</code></td><td><span class="tag tag-teal">trans</span></td><td>top-operators</td><td>Sewing production detail (per operator)</td></tr>
+    <tr><td><code>T_QcProductionHd_{Month}</code></td><td><span class="tag tag-teal">trans</span></td><td>histogram, linewise-hourly</td><td>QC hourly production header</td></tr>
+    <tr><td><code>T_QcProductionDt_{Month}</code></td><td><span class="tag tag-teal">trans</span></td><td>dhu, qc-defects, <strong>top-rw-operators</strong></td><td>QC production detail (per operator)</td></tr>
+    <tr><td><code>T_EmpLoginDt_{Month}</code></td><td><span class="tag tag-teal">trans</span></td><td>top-operators, bd-nw-detail</td><td>Employee login — PcsSam, AvailMins per day</td></tr>
+    <tr><td><code>T_EmpLoginHd_{Month}</code></td><td><span class="tag tag-teal">trans</span></td><td>oprnpt-report</td><td>Employee login header — login times</td></tr>
+    <tr><td><code>T_DownTimeHd_{Month}</code></td><td><span class="tag tag-teal">trans</span></td><td>bd-nw, bd-nw-detail</td><td>Breakdown time records</td></tr>
+    <tr><td><code>T_NoWorkTimeHd_{Month}</code></td><td><span class="tag tag-teal">trans</span></td><td>bd-nw, bd-nw-detail</td><td>No-work time records</td></tr>
+    <tr><td><code>T_MAlert</code></td><td><span class="tag tag-teal">trans</span></td><td>alert-report</td><td>Maintenance alerts</td></tr>
+    <tr><td><code>T_SAlert</code></td><td><span class="tag tag-teal">trans</span></td><td>alert-report</td><td>Supervisor alerts</td></tr>
+    <tr><td><code>T_Tags</code></td><td><span class="tag tag-blue">master</span></td><td>wip, wip-report</td><td>Bundle/tag tracking</td></tr>
+    <tr><td><code>M_LineHd</code></td><td><span class="tag tag-blue">master</span></td><td>lines, production, linewise-hourly, bd-nw-detail</td><td>Line master (LineCode, ShortName, LineType)</td></tr>
+    <tr><td><code>M_LineDt</code></td><td><span class="tag tag-blue">master</span></td><td>production, bd-nw, bd-nw-detail, alert-report</td><td>Workstation detail under a line</td></tr>
+    <tr><td><code>M_Shift</code></td><td><span class="tag tag-blue">master</span></td><td>shifts, efficiency</td><td>Shift master (ShiftCode, ShiftTime)</td></tr>
+    <tr><td><code>M_ShiftHd</code></td><td><span class="tag tag-blue">master</span></td><td>efficiency</td><td>Shift time window (CStartTime, CEndTime)</td></tr>
+    <tr><td><code>M_ShiftLineBreak</code></td><td><span class="tag tag-blue">master</span></td><td>efficiency, oprnpt-report</td><td>Scheduled break times per shift/line/weekday</td></tr>
+    <tr><td><code>M_Hrs</code></td><td><span class="tag tag-blue">master</span></td><td>production, linewise-hourly</td><td>Hour definitions per shift/line/weekday</td></tr>
+    <tr><td><code>M_BundleSettings</code></td><td><span class="tag tag-blue">master</span></td><td>efficiency, linewise-hourly (cached)</td><td>Efficiency configuration string</td></tr>
+    <tr><td><code>M_Employee</code></td><td><span class="tag tag-blue">master</span></td><td>top-operators, top-rw-operators, alert-report</td><td>Employee master</td></tr>
+    <tr><td><code>M_OperationSeq</code></td><td><span class="tag tag-blue">master</span></td><td>histogram, linewise-hourly, wip, wip-report</td><td>Operation sequence per style</td></tr>
+    <tr><td><code>M_Operation</code></td><td><span class="tag tag-blue">master</span></td><td>histogram, hourly-opr-operation, top-operators</td><td>Operation master (name)</td></tr>
+    <tr><td><code>M_QcOperationSeq</code></td><td><span class="tag tag-blue">master</span></td><td>dhu, qc-defects, top-rw-operators, histogram, linewise-hourly</td><td>QC operation sequence per style</td></tr>
+    <tr><td><code>M_QcOperation</code></td><td><span class="tag tag-blue">master</span></td><td>dhu, qc-defects, top-rw-operators, histogram, linewise-hourly</td><td>QC operation master (ProcessCode, name)</td></tr>
+    <tr><td><code>M_Defects</code></td><td><span class="tag tag-blue">master</span></td><td>qc-defects</td><td>Defect descriptions</td></tr>
+    <tr><td><code>M_DownTimeReason</code></td><td><span class="tag tag-blue">master</span></td><td>bd-nw, bd-nw-detail</td><td>Breakdown/NoWork reason names</td></tr>
+    <tr><td><code>M_QcLineDt</code></td><td><span class="tag tag-blue">master</span></td><td>production, efficiency</td><td>QC operator login detail</td></tr>
+    <tr><td><code>M_StyleHd</code></td><td><span class="tag tag-blue">master</span></td><td>wip, wip-report</td><td>Style master (StyleClosed flag)</td></tr>
+    <tr><td><code>M_StylePoHd</code></td><td><span class="tag tag-blue">master</span></td><td>wip</td><td>PO master (PoClosed flag)</td></tr>
+    <tr><td><code>V_StylePoHd</code></td><td><span class="tag tag-blue">master</span></td><td>styledetails, wip-report</td><td>View — Buyer, StyleNo, PoNo, OrderQty, ExFactoryDate</td></tr>
+    <tr><td><code>V_Employee</code></td><td><span class="tag tag-blue">master</span></td><td>bd-nw-detail</td><td>View — Employee name + number</td></tr>
+    <tr><td><code>M_Section</code></td><td><span class="tag tag-blue">master</span></td><td>alert-report</td><td>Section names</td></tr>
+    <tr><td><code>M_Process</code></td><td><span class="tag tag-blue">master</span></td><td>alert-report</td><td>Process names</td></tr>
+    <tr><td><code>M_Group</code></td><td><span class="tag tag-blue">master</span></td><td>hourly-opr-operation, wip-report</td><td>Group (sub-section) names</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════ 8. NEW FEATURES ═══════════════════════════════ -->
+  <h2 class="section-title" id="new-features"><span class="num">8</span> New Features Added</h2>
+
+  <h3>8.1 — OEE Overview Card <span class="tag tag-green">NEW</span></h3>
+  <div class="card">
+    <table>
+      <tr><th>Item</th><th>Detail</th></tr>
+      <tr><td>Position</td><td>Row 3 — right of Hourly Production (flex: 1)</td></tr>
+      <tr><td>Gauge</td><td>SVG circular arc showing OEE Score with colour coding (Green ≥80%, Amber ≥60%, Red &lt;60%)</td></tr>
+      <tr><td>Availability</td><td><code>totalWorkedMins / (shiftTimeTillNow × activeWS) × 100</code> — shown in Green</td></tr>
+      <tr><td>Performance</td><td><code>totalEarnedMinutes / totalWorkedMins × 100</code> — shown in Blue</td></tr>
+      <tr><td>Quality</td><td><code>SectionCHKPassedPcs / SectionCHKLoadingPcs × 100</code> — shown in Amber</td></tr>
+      <tr><td>OEE Score</td><td><code>(A/100) × (P/100) × (Q/100) × 100</code></td></tr>
+      <tr><td>No new API</td><td>Calculated entirely from existing <code>data</code> + <code>efficiencyData</code> state</td></tr>
+    </table>
+  </div>
+
+  <h3>8.2 — Top 5 RW Operators Card <span class="tag tag-green">NEW</span></h3>
+  <div class="card">
+    <table>
+      <tr><th>Item</th><th>Detail</th></tr>
+      <tr><td>Position</td><td>Row 7 — right of Defect Analysis (flex: 1)</td></tr>
+      <tr><td>Source</td><td>New endpoint <code>GET /api/dashboard/top-rw-operators</code></td></tr>
+      <tr><td>Scope</td><td>EndLine Checking only (ProcessCode = '004')</td></tr>
+      <tr><td>Ranking</td><td>Top 5 by ReworkPcs DESC, HAVING ReworkPcs &gt; 0</td></tr>
+      <tr><td>Columns shown</td><td>Rank # · Operator Name · Emp No · RW Pcs · RW %</td></tr>
+      <tr><td>RW %</td><td><code>ReworkPcs / CheckedPcs × 100</code> — calculated in SQL</td></tr>
+      <tr><td>Accent colour</td><td>Orange (#f97316) — matches warning severity</td></tr>
+    </table>
+  </div>
+
+  <h3>8.3 — Card Layout Reorder</h3>
+  <div class="card">
+    <table>
+      <thead><tr><th>Row</th><th>Old Layout</th><th>New Layout</th></tr></thead>
+      <tr><td>Row 3</td><td>Hourly Production + Quality Info</td><td>Hourly Production + <strong>OEE Card ★</strong></td></tr>
+      <tr><td>Row 4</td><td>DHU + Defect Analysis</td><td><strong>Histogram</strong> (moved up)</td></tr>
+      <tr><td>Row 5</td><td>Histogram</td><td><strong>Top &amp; Low Performing Operators</strong> (moved up)</td></tr>
+      <tr><td>Row 6</td><td>Top &amp; Low Performing Operators</td><td><strong>Quality Info + DHU</strong> (combined)</td></tr>
+      <tr><td>Row 7</td><td><em>(none)</em></td><td><strong>Defect Analysis + Top 5 RW Operators ★</strong></td></tr>
+      <tr><td>Row 8+</td><td>BreakDown / NoWork / DownTime / Alerts</td><td>Unchanged</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<footer style="background:var(--blue);color:rgba(255,255,255,0.7);text-align:center;padding:18px;font-size:12px;margin-top:40px">
+  ProCon® Dashboard Documentation &nbsp;|&nbsp; Generated 02 Jun 2026 &nbsp;|&nbsp; Crystal &lt;km_malar@crystalcspl.in&gt;
+</footer>
+
+</body>
+</html>

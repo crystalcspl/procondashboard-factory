@@ -1,0 +1,5 @@
+/* Hide the browser's native password-reveal eye button (Edge / IE) */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}

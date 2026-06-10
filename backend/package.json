@@ -1,0 +1,21 @@
+{
+  "name": "procon-dashboard-factory-backend",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "set NODE_ENV=production && node src/index.js",
+    "dev": "nodemon src/index.js",
+    "build": "cd ../frontend && npm run build",
+    "build:win": "cd ..\\frontend && npm run build",
+    "prod": "npm run build:win && set NODE_ENV=production && node src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mssql": "^11.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
