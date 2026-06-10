@@ -927,32 +927,26 @@ router.get('/efficiency', async (req, res) => {
     const yyyy  = today.getFullYear();
     const defaultDate = `${dd}/${mm}/${yyyy}`;
 
-    const { date = defaultDate, shift = '001', lineCode = '' } = req.query;
+    const { date = defaultDate, shift = '001' } = req.query;
 
     const pool = await getPool(conn, masterDB);
 
-    // ===== DETERMINE I_L_SameDate vs I_L_NotSameDate =====
+    // ===== DETERMINE SameDate vs NotSameDate =====
     let I_L_SameDate = 0;
     let I_L_NotSameDate = 0;
     let currentShiftCode = null;
-    let breakMinsTillNow = 0;
-    let availableMinsWithBreakMins = 0;
-    let availableMinsWithOutBreakMins = 0;
-    let currTargetPcs = 0;
+    let minutesSinceShiftStart = 0;
 
-    // Check if selected date matches SQL Server current date
     const isSameDate = date === defaultDate;
 
     if (isSameDate) {
-      // Get current time's shift code by matching the selected shift's time window
       const currentTimeResult = await pool.request()
         .input('shiftCode', sql.VarChar(10), shift)
         .query(`
           DECLARE @CurrentTime TIME = CONVERT(TIME, GETDATE());
           SELECT TOP 1 ShiftCode,
             CONVERT(VARCHAR(8), CStartTime, 108) AS CStartTime,
-            CONVERT(VARCHAR(8), CEndTime, 108) AS CEndTime,
-            ShiftTime, ShiftBreakTime
+            CONVERT(VARCHAR(8), CEndTime, 108) AS CEndTime
           FROM [${masterDB}]..M_ShiftHd
           WHERE ShiftCode = @shiftCode
             AND CAST(CStartTime AS TIME) <= @CurrentTime
@@ -961,54 +955,43 @@ router.get('/efficiency', async (req, res) => {
         `);
 
       if (currentTimeResult.recordset && currentTimeResult.recordset.length > 0) {
-        // Selected shift is currently active — SameDate logic applies
         currentShiftCode = currentTimeResult.recordset[0].ShiftCode;
         I_L_SameDate = 1;
-        I_L_NotSameDate = 0;
-
-        // ManDayMinutes = DateDiff(Minute, ShiftStartTime, Now) - BreakMinsTillNow
-        const shiftStartTime = currentTimeResult.recordset[0].CStartTime; // HH:MM:SS
+        const shiftStartTime = currentTimeResult.recordset[0].CStartTime;
         const now = new Date();
         const [sh, sm] = shiftStartTime.split(':').map(Number);
         const shiftStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm, 0);
-        const minutesSinceShiftStart = Math.floor((now - shiftStartDate) / 60000);
-
-        const breakResult = await pool.request()
-          .input('shiftCode', sql.VarChar(10), shift)
-          .input('lineCode',  sql.VarChar(20), lineCode || '')
-          .query(`
-            DECLARE @CurrentTime TIME = CONVERT(TIME, GETDATE());
-            DECLARE @WeekDay INT = DATEPART(WEEKDAY, GETDATE());
-            SELECT IsNull(SUM(
-              CASE
-                WHEN CAST(BreakStartTime AS TIME) <= @CurrentTime
-                THEN DATEDIFF(MINUTE, CAST(BreakStartTime AS TIME), CAST(BreakEndTime AS TIME))
-                ELSE 0
-              END
-            ), 0) AS BreakMinsTillNow
-            FROM [${masterDB}]..M_ShiftLineBreak
-            WHERE ShiftCode = @shiftCode AND LineCode = @lineCode
-              AND Active = 'Y' AND WeekDayNo = @WeekDay
-          `);
-
-        breakMinsTillNow = breakResult.recordset[0]?.BreakMinsTillNow || 0;
-        availableMinsWithBreakMins = minutesSinceShiftStart;
-        availableMinsWithOutBreakMins = minutesSinceShiftStart - breakMinsTillNow;
-
+        minutesSinceShiftStart = Math.floor((now - shiftStartDate) / 60000);
       } else {
-        // No shift found for current time
-        I_L_SameDate = 0;
         I_L_NotSameDate = 1;
-        breakMinsTillNow = 0;
       }
     } else {
-      // Selected date is not today
-      I_L_SameDate = 0;
       I_L_NotSameDate = 1;
-      breakMinsTillNow = 0;
     }
 
-    // Fetch efficiency settings from M_BundleSettings
+    // ===== BATCH BREAK QUERY — one row per line (SameDate only) =====
+    const breakMap = {};
+    if (I_L_SameDate) {
+      const breakBatch = await pool.request()
+        .input('shiftCode', sql.VarChar(10), shift)
+        .query(`
+          DECLARE @CurrentTime TIME = CONVERT(TIME, GETDATE());
+          DECLARE @WeekDay INT = DATEPART(WEEKDAY, GETDATE());
+          SELECT LineCode,
+                 ISNULL(SUM(
+                   CASE WHEN CAST(BreakStartTime AS TIME) <= @CurrentTime
+                        THEN DATEDIFF(MINUTE, CAST(BreakStartTime AS TIME), CAST(BreakEndTime AS TIME))
+                        ELSE 0
+                   END
+                 ), 0) AS BreakMinsTillNow
+          FROM [${masterDB}]..M_ShiftLineBreak
+          WHERE ShiftCode = @shiftCode AND Active = 'Y' AND WeekDayNo = @WeekDay
+          GROUP BY LineCode
+        `);
+      breakBatch.recordset.forEach(r => { breakMap[r.LineCode] = r.BreakMinsTillNow; });
+    }
+
+    // ===== EFFICIENCY SETTINGS =====
     const settingsCacheKey = `bundle_settings:${masterDB}`;
     let configString = cacheGet(settingsCacheKey);
     if (!configString) {
@@ -1024,26 +1007,23 @@ router.get('/efficiency', async (req, res) => {
       cacheSet(settingsCacheKey, configString);
     }
 
-    // Initialize calculator and load settings
     const calculator = new EfficiencyCalculator(enableDebug);
     try {
       calculator.dispEffSettings(configString);
     } catch (error) {
-      console.error(`\n❌ CONFIGURATION LOAD ERROR: ${error.message}\n`);
       return res.status(400).json({ error: 'Invalid efficiency settings' });
     }
 
-    // Fetch production data using the shared query (deduped & cached — no extra DB hit)
-    const prodRows = await fetchProductionData(conn, masterDB, transDB, date, shift, lineCode);
-
+    // ===== FETCH ALL LINES PRODUCTION DATA =====
+    const prodRows = await fetchProductionData(conn, masterDB, transDB, date, shift, '');
     if (!prodRows || prodRows.length === 0) {
-      console.error(`\n❌ NO PRODUCTION DATA FOUND for Date=${date}, Shift=${shift}, Line=${lineCode || 'ALL'}\n`);
-      return res.status(400).json({ error: 'Production data not found' });
+      return res.json({
+        lines: [], factory: {}, shiftElapsed: minutesSinceShiftStart,
+        metadata: { isSameDate: isSameDate, calculationTime: `${Date.now()-startTime}ms`, timestamp: new Date().toISOString() },
+      });
     }
 
-    const productionData = prodRows[0];
-
-    // Fetch shift details
+    // ===== SHIFT MASTER =====
     const shiftResult = await pool.request()
       .input('shiftCode', sql.VarChar(10), shift)
       .query(`
@@ -1051,57 +1031,163 @@ router.get('/efficiency', async (req, res) => {
         FROM [${masterDB}]..M_Shift
         WHERE ShiftCode = @shiftCode
       `);
+    const shiftData = shiftResult.recordset[0] || { ShiftCode: shift, ShiftTime: 480, ShiftOverTime: 0 };
 
-    const shiftData = shiftResult.recordset[0] || {
-      ShiftCode: shift,
-      ShiftTime: 480,
-      ShiftOverTime: 0
-    };
+    // ===== HELPERS =====
+    function getOutputPcs(calc, row) {
+      if (calc.I_L_Output_Sewing)    return (row.LineSWGSewnPcs || 0)           + (calc.I_L_WithOT ? (row.LineSWGSewnPcsOT || 0) : 0);
+      if (calc.I_L_Output_QC)        return (row.LineCHKPassedPcs || 0)         + (calc.I_L_WithOT ? (row.LineCHKPassedPcsOT || 0) : 0);
+      if (calc.I_L_Output_AQL)       return (row.LineAQLPassedPcs || 0)         + (calc.I_L_WithOT ? (row.LineAQLPassedPcsOT || 0) : 0);
+      if (calc.I_L_Output_Finishing) return (row.LineFINPassedPcs || 0)         + (calc.I_L_WithOT ? (row.LineFINPassedPcsOT || 0) : 0);
+      if (calc.I_L_Output_Packing)   return (row.LinePKGPassedPcs || 0)         + (calc.I_L_WithOT ? (row.LinePKGPassedPcsOT || 0) : 0);
+      return 0;
+    }
 
-    const result = calculator.calculate(
-      productionData,
-      shiftData,
-      {
-        reportDate: date,
-        shiftCode: shift,
-        currentShiftCode: currentShiftCode || shift,
-        breakMinsTillNow: breakMinsTillNow,
-        isSameDate: I_L_SameDate === 1,
-        isNotSameDate: I_L_NotSameDate === 1,
-        availableMinsWithBreakMins: availableMinsWithBreakMins,
-        availableMinsWithOutBreakMins: availableMinsWithOutBreakMins
-      }
-    );
+    function getOperators(calc, row) {
+      return (
+        calc.I_L_SewingOpr    * (row.SectionSWGOprsAtt || 0) +
+        calc.I_L_CheckingOpr  * (row.SectionCHKOprsAtt || 0) +
+        calc.I_L_AQLOpr       * (row.SectionAQLOprsAtt || 0) +
+        calc.I_L_FinishingOpr * (row.SectionFINOprsAtt || 0) +
+        calc.I_L_PackingOpr   * (row.SectionPKGOprsAtt || 0)
+      );
+    }
+
+    // ===== PER-LINE LOOP =====
+    const lines = [];
+    let totalEarnedMins = 0, totalAvailMins = 0, totalOutput = 0, totalTarget = 0, totalManDays = 0;
+    let totalWs = 0, totalActiveWs = 0, totalPresentOprs = 0, totalFeeding = 0, totalWip = 0;
+    let totalChkPassed = 0, totalChkRw = 0, totalChkRj = 0;
+    let totalAqlPassed = 0, totalAqlRw = 0, totalAqlRj = 0;
+    let totalFinPassed = 0, totalFinRw = 0, totalFinRj = 0;
+    let totalPkgPassed = 0, totalPkgRw = 0, totalPkgRj = 0;
+    let totalIdleTime = 0, totalNwTime = 0, totalBdTime = 0, totalRwTime = 0, totalNptOpr = 0, totalNptLine = 0;
+    let totalMechRx = 0, totalMechAtt = 0, totalSuprRx = 0, totalSuprAtt = 0;
+    let totalTargetEff = 0;
+
+    for (const lineRow of prodRows) {
+      const lineBreakMins         = I_L_SameDate ? (breakMap[lineRow.LineCode] || 0) : 0;
+      const lineAvailWithoutBreak = I_L_SameDate ? (minutesSinceShiftStart - lineBreakMins) : 0;
+
+      const lineResult = calculator.calculate(lineRow, shiftData, {
+        reportDate:                    date,
+        shiftCode:                     shift,
+        currentShiftCode:              currentShiftCode || shift,
+        breakMinsTillNow:              lineBreakMins,
+        isSameDate:                    I_L_SameDate === 1,
+        isNotSameDate:                 I_L_NotSameDate === 1,
+        availableMinsWithBreakMins:    minutesSinceShiftStart,
+        availableMinsWithOutBreakMins: lineAvailWithoutBreak,
+      });
+
+      const outputPcs = getOutputPcs(calculator, lineRow);
+      const target    = lineRow.LineTargetPcs || 0;
+      const operators = getOperators(calculator, lineRow);
+      const withOT    = calculator.I_L_WithOT;
+      const g = (f) => lineRow[f] || 0;
+
+      const lineAllWs      = g('SectionSWGCapacityWs')+g('SectionCHKCapacityWs')+g('SectionAQLCapacityWs')+g('SectionFINCapacityWs')+g('SectionPKGCapacityWs');
+      const lineAllActiveWs= g('SectionSWGActualWs')+g('SectionCHKActualWs')+g('SectionAQLActualWs')+g('SectionFINActualWs')+g('SectionPKGActualWs');
+      const lineAllOprs    = g('SectionSWGOprsAtt')+g('SectionCHKOprsAtt')+g('SectionAQLOprsAtt')+g('SectionFINOprsAtt')+g('SectionPKGOprsAtt');
+
+      lines.push({
+        lineCode:      lineRow.LineCode,
+        lineName:      lineRow.LineName,
+        efficiency:    lineResult.efficiency,
+        earnedMins:    lineResult.earnedMinutes,
+        availMins:     lineResult.availableMinutes,
+        output:        outputPcs,
+        target,
+        operators,
+        manDays:       lineResult.manDays,
+        manDayMinutes: lineResult.shiftDetails.ManDayMinutes,
+        feeding:       g('SectionIssuedPcs'),
+        wip:           g('SectionCHKLoadingPcs'),
+        totalWs:       lineAllWs,
+        presentOprs:   lineAllOprs,
+      });
+
+      totalEarnedMins  += lineResult.earnedMinutes;
+      totalAvailMins   += lineResult.availableMinutes;
+      totalOutput      += outputPcs;
+      totalTarget      += target;
+      totalManDays     += lineResult.manDays;
+      totalWs          += lineAllWs;
+      totalActiveWs    += lineAllActiveWs;
+      totalPresentOprs += lineAllOprs;
+      totalFeeding     += g('SectionIssuedPcs');
+      totalWip         += g('SectionCHKLoadingPcs');
+      totalTargetEff   += g('LineTargetEff');
+
+      totalChkPassed += g('LineCHKPassedPcs') + (withOT ? g('LineCHKPassedPcsOT') : 0);
+      totalChkRw     += g('SectionCHKReworkPcs');
+      totalChkRj     += g('SectionCHKRejectedPcs');
+      totalAqlPassed += g('LineAQLPassedPcs') + (withOT ? g('LineAQLPassedPcsOT') : 0);
+      totalAqlRw     += g('SectionAQLReworkPcs');
+      totalAqlRj     += g('SectionAQLRejectedPcs');
+      totalFinPassed += g('LineFINPassedPcs') + (withOT ? g('LineFINPassedPcsOT') : 0);
+      totalFinRw     += g('SectionFINReworkPcs');
+      totalFinRj     += g('SectionFINRejectedPcs');
+      totalPkgPassed += g('LinePKGPassedPcs') + (withOT ? g('LinePKGPassedPcsOT') : 0);
+      totalPkgRw     += g('SectionPKGReworkPcs');
+      totalPkgRj     += g('SectionPKGRejectedPcs');
+
+      totalIdleTime += g('SectionSWGIdleTime')+g('SectionSWGIdleTimeOT')+g('SectionCHKIdleTime')+g('SectionCHKIdleTimeOT')+g('SectionAQLIdleTime')+g('SectionAQLIdleTimeOT')+g('SectionFINIdleTime')+g('SectionFINIdleTimeOT')+g('SectionPKGIdleTime')+g('SectionPKGIdleTimeOT');
+      totalNwTime   += g('SectionSWGNWTime')+g('SectionSWGNWTimeOT')+g('SectionCHKNWTime')+g('SectionCHKNWTimeOT')+g('SectionAQLNWTime')+g('SectionAQLNWTimeOT')+g('SectionFINNWTime')+g('SectionFINNWTimeOT')+g('SectionPKGNWTime')+g('SectionPKGNWTimeOT');
+      totalBdTime   += g('SectionSWGBDTime')+g('SectionSWGBDTimeOT')+g('SectionCHKBDTime')+g('SectionCHKBDTimeOT')+g('SectionAQLBDTime')+g('SectionAQLBDTimeOT')+g('SectionFINBDTime')+g('SectionFINBDTimeOT')+g('SectionPKGBDTime')+g('SectionPKGBDTimeOT');
+      totalRwTime   += g('SectionSWGRwTime')+g('SectionSWGRwTimeOT');
+      totalNptOpr   += g('SectionSWGNPTimeOPR')+g('SectionSWGNPTimeOPROT')+g('SectionCHKNPTimeOPR')+g('SectionCHKNPTimeOPROT')+g('SectionAQLNPTimeOPR')+g('SectionAQLNPTimeOPROT')+g('SectionFINNPTimeOPR')+g('SectionFINNPTimeOPROT')+g('SectionPKGNPTimeOPR')+g('SectionPKGNPTimeOPROT');
+      totalNptLine  += g('SectionSWGNPTimeLine')+g('SectionSWGNPTimeLineOT')+g('SectionCHKNPTimeLine')+g('SectionCHKNPTimeLineOT')+g('SectionAQLNPTimeLine')+g('SectionAQLNPTimeLineOT')+g('SectionFINNPTimeLine')+g('SectionFINNPTimeLineOT')+g('SectionPKGNPTimeLine')+g('SectionPKGNPTimeLineOT');
+
+      totalMechRx  += g('MechAlertReceived');
+      totalMechAtt += g('MechAlertAttended');
+      totalSuprRx  += g('SuprAlertReceived');
+      totalSuprAtt += g('SuprAlertAttended');
+    }
+
+    const factoryEfficiency = totalAvailMins > 0
+      ? Math.round(totalEarnedMins / totalAvailMins * 100)
+      : 0;
 
     const duration = Date.now() - startTime;
 
-    // Add SameDate/NotSameDate and break timing info to response
-    result.flags.I_L_SameDate = I_L_SameDate;
-    result.flags.I_L_NotSameDate = I_L_NotSameDate;
-    result.shiftDetails.BreakMinsTillNow = breakMinsTillNow;
-    result.shiftDetails.AvailableMinsWithBreakMins = availableMinsWithBreakMins;
-    result.shiftDetails.AvailableMinsWithOutBreakMins = availableMinsWithOutBreakMins;
-
-    // Add performance metadata
-    result.metadata = {
-      calculationTime: `${duration}ms`,
-      timestamp: new Date().toISOString(),
-      debug: enableDebug
-    };
-
-    res.json(result);
+    res.json({
+      lines,
+      factory: {
+        efficiency:   factoryEfficiency,
+        output:       totalOutput,
+        target:       totalTarget,
+        manDays:      Math.round(totalManDays * 10) / 10,
+        earnedMins:   totalEarnedMins,
+        availMins:    totalAvailMins,
+        totalWs:      totalWs,
+        activeWs:     totalActiveWs,
+        presentOprs:  totalPresentOprs,
+        feeding:      totalFeeding,
+        wip:          totalWip,
+        targetEff:    prodRows.length > 0 ? Math.round(totalTargetEff / prodRows.length) : 0,
+        shiftTime:    shiftData.ShiftTime || 480,
+        chkPassed: totalChkPassed, chkRw: totalChkRw, chkRj: totalChkRj,
+        aqlPassed: totalAqlPassed, aqlRw: totalAqlRw, aqlRj: totalAqlRj,
+        finPassed: totalFinPassed, finRw: totalFinRw, finRj: totalFinRj,
+        pkgPassed: totalPkgPassed, pkgRw: totalPkgRw, pkgRj: totalPkgRj,
+        idleTime: totalIdleTime, nwTime: totalNwTime, bdTime: totalBdTime,
+        rwTime: totalRwTime, nptOpr: totalNptOpr, nptLine: totalNptLine,
+        mechAlertReceived: totalMechRx, mechAlertAttended: totalMechAtt,
+        suprAlertReceived: totalSuprRx, suprAlertAttended: totalSuprAtt,
+      },
+      shiftElapsed: minutesSinceShiftStart,
+      flags: calculator.getFlags(),
+      metadata: {
+        calculationTime: `${duration}ms`,
+        timestamp:       new Date().toISOString(),
+        isSameDate:      I_L_SameDate === 1,
+      },
+    });
   } catch (err) {
     const duration = Date.now() - startTime;
-    console.error('\n❌ EFFICIENCY CALCULATION ERROR ❌');
-    console.error(`⏱️  Duration: ${duration}ms`);
-    console.error(`📛 Error: ${err.message}`);
-    console.error(`📍 Stack: ${err.stack}`);
-    console.error('====================================================\n');
-    res.status(500).json({
-      error: err.message,
-      timestamp: new Date().toISOString(),
-      duration: `${duration}ms`
-    });
+    console.error('[FACTORY EFFICIENCY] Error:', err.message);
+    res.status(500).json({ error: err.message, duration: `${duration}ms` });
   }
 });
 
@@ -1638,6 +1724,117 @@ router.get('/top-rw-operators', async (req, res) => {
     res.json(result.recordset);
   } catch (err) {
     console.error('[TOP-RW-OPERATORS] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/active-orders', async (req, res) => {
+  try {
+    const { conn, masterDB, transDB } = resolveContext(req);
+    const { date, shift } = req.query;
+    if (!date || !shift) return res.json([]);
+
+    const prodRows = await fetchProductionData(conn, masterDB, transDB, date, shift, '');
+    if (!prodRows.length) return res.json([]);
+
+    // Build style/PO → lines map (one entry per unique styleCode+poSlNo combination)
+    const styleLineMap = {};
+    for (const row of prodRows) {
+      if (!row.StyleCodeStg) continue;
+      const styleCodes = row.StyleCodeStg.split(',').map(s => s.trim()).filter(Boolean);
+      const poSlNos    = (row.PoSlNoStg || '').split(',').map(s => s.trim()).filter(Boolean);
+      for (let i = 0; i < styleCodes.length; i++) {
+        const styleCode = styleCodes[i];
+        const poSlNo    = poSlNos[i] || poSlNos[0] || '';
+        if (!styleCode) continue;
+        const key = `${styleCode}_${poSlNo}`;
+        if (!styleLineMap[key]) styleLineMap[key] = { styleCode, poSlNo, lines: [] };
+        // avoid duplicate lines (same line may appear if multiple styles listed)
+        if (!styleLineMap[key].lines.find(l => l.lineCode === row.LineCode)) {
+          styleLineMap[key].lines.push({ lineCode: row.LineCode, lineName: row.LineName });
+        }
+      }
+    }
+    if (!Object.keys(styleLineMap).length) return res.json([]);
+
+    const allStyles  = [...new Set(Object.values(styleLineMap).map(v => v.styleCode))];
+    const allPoSlNos = [...new Set(Object.values(styleLineMap).map(v => v.poSlNo).filter(Boolean))];
+    const pool       = await getPool(conn, masterDB);
+    const styleIn    = allStyles.map(s  => `'${s.replace(/'/g, "''")}'`).join(',');
+    const poIn       = allPoSlNos.length ? allPoSlNos.map(p => `'${p.replace(/'/g, "''")}'`).join(',') : `''`;
+
+    // Style master with P.O. Date
+    const styleResult = await pool.request().query(`
+      SELECT StyleCode, PoSlNo, BuyerName AS Buyer, StyleNo,
+             PoNo, CONVERT(VARCHAR(10), PoDate, 103) AS PoDate,
+             CONVERT(VARCHAR(10), ExFactoryDate, 103) AS ExFactoryDate, OrderQty
+      FROM [${masterDB}]..V_StylePoHd WITH (NOLOCK)
+      WHERE StyleCode IN (${styleIn}) AND PoSlNo IN (${poIn})
+    `);
+    const styleDetailMap = {};
+    styleResult.recordset.forEach(r => { styleDetailMap[`${r.StyleCode}_${r.PoSlNo}`] = r; });
+
+    // Cumulative production + per-line running days (FY-wide)
+    const [d, m, y] = date.split('/').map(Number);
+    const fyStartYear = m >= 4 ? y : y - 1;
+    const fyStart = `${fyStartYear}-04-01`;
+    const fyEnd   = `${fyStartYear + 1}-03-31`;
+    const transPool = await getPool(conn, transDB);
+    const cumResult = await transPool.request()
+      .input('fyStart', sql.VarChar(20), fyStart)
+      .input('fyEnd',   sql.VarChar(20), fyEnd)
+      .query(`
+        SELECT StyleCode, PoSlNo, LineCode,
+               SUM(SewnPcs + OTSewnPcs) AS CumPrdnPcs,
+               COUNT(DISTINCT ProdnDate) AS RunningDays
+        FROM [${transDB}]..T_FactStyleProduction WITH (NOLOCK)
+        WHERE ProdnDate >= @fyStart AND ProdnDate <= @fyEnd
+          AND StyleCode IN (${styleIn}) AND PoSlNo IN (${poIn})
+        GROUP BY StyleCode, PoSlNo, LineCode
+      `);
+
+    const cumMap = {};  // key: `${sc}_${po}` → total factory pcs
+    const rdMap  = {};  // key: `${sc}_${po}_${lc}` → per-line running days
+    cumResult.recordset.forEach(r => {
+      const k = `${r.StyleCode}_${r.PoSlNo}`;
+      cumMap[k] = (cumMap[k] || 0) + (r.CumPrdnPcs || 0);
+      rdMap[`${k}_${r.LineCode}`] = r.RunningDays || 0;
+    });
+
+    const result = [];
+    for (const [key, sl] of Object.entries(styleLineMap)) {
+      const detail = styleDetailMap[key];
+      if (!detail) continue;
+      result.push({
+        styleCode:     sl.styleCode,
+        poSlNo:        sl.poSlNo,
+        buyer:         detail.Buyer         || '',
+        styleNo:       detail.StyleNo       || '',
+        poNo:          detail.PoNo          || '',
+        poDate:        detail.PoDate        || '',
+        exFactoryDate: detail.ExFactoryDate || '',
+        orderQty:      detail.OrderQty      || 0,
+        prodnPcs:      cumMap[key]          || 0,
+        lines: sl.lines.map(l => ({
+          lineCode:    l.lineCode,
+          lineName:    l.lineName,
+          runningDays: rdMap[`${key}_${l.lineCode}`] || 0,
+        })),
+      });
+    }
+
+    // Sort by ex-factory date ascending (soonest deadline first)
+    result.sort((a, b) => {
+      if (a.exFactoryDate && b.exFactoryDate) {
+        const parse = (s) => { const [dd,mm,yy] = s.split('/').map(Number); return new Date(yy,mm-1,dd); };
+        return parse(a.exFactoryDate) - parse(b.exFactoryDate);
+      }
+      return a.exFactoryDate ? -1 : 1;
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error('[ACTIVE-ORDERS] Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
