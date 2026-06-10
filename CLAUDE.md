@@ -68,22 +68,51 @@ Factory dashboard runs on port `3001` in `backend/.env` so both Line (3000) and 
 
 ---
 
+## UI Layout (main screen — no popups)
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Filter bar: Date | Shift  (no Line selector)            │
+├──────────────────────────────────────────────────────────┤
+│  Header cards: Eff% | Output | Target | ManDays | Clocked│
+├─────────────────────────────┬────────────────────────────┤
+│  Lines Summary Table        │  Active Production Orders  │
+│  (fixed height, scrollable) │  (fixed height, scrollable)│
+│  ─────────────────────────  │  ──────────────────────────│
+│  Line  Eff  Out  Tgt  MD    │  Line  Buyer  Style  ExFact│
+│  L-01  85%  420  500  38    │  L-01  ABC    ST001   10Jul │
+│  L-02  72%  380  520  35    │  L-02  XYZ    ST002   15Jul │
+│  ...                        │  ...                       │
+│  ══ Factory ══ 79% 800 1020 │                            │
+└─────────────────────────────┴────────────────────────────┘
+```
+
+- Both panels side-by-side, equal width
+- Each has a fixed-height scrollable tbody (e.g. max-height: 320px, overflow-y: auto)
+- Lines table has a sticky totals/factory row at the bottom
+- Active Orders sourced from `StyleCodeStg` + `PoSlNoStg` in production rows, joined to `V_StylePoHd`
+
 ## What to build next (in order)
 
 1. **Backend `/efficiency` route** — implement Option A batch breaks, loop over all lines, return:
-   - `lines[]` array — per-line efficiency, output, target, operators, manDays, ManDayMinutes
-   - `factory{}` — aggregated totals + weighted efficiency
-   - `shiftElapsed` — `minutesSinceShiftStart` (global)
+   - `lines[]` array — per-line: LineName, efficiency, earnedMins, availMins, output, target, operators, manDays, ManDayMinutes
+   - `factory{}` — aggregated totals + weighted efficiency + shiftElapsed
+   - `shiftElapsed` — `minutesSinceShiftStart` (global, used for ClockedMins card)
 
-2. **Backend `/production` route** — already works with `lineCode=''`, returns all lines
+2. **Backend `/active-orders` route** — for each line in production rows, extract StyleCodeStg + PoSlNoStg,
+   join to `V_StylePoHd` for Buyer, StyleNo, PoNo, ExFactoryDate, OrderQty. Return one row per line.
 
 3. **Frontend: Remove Line selector** — keep only Date + Shift in the filter bar
 
 4. **Frontend: Factory header cards** — Efficiency %, Output, Target, ManDays, ClockedMins (shiftElapsed)
 
-5. **Frontend: Lines summary table** — one row per line: Line name, Eff%, Output, Target, Operators, ManDayMins
+5. **Frontend: Lines summary table** — fixed-height scrollable, sticky factory totals row at bottom
+   Columns: Line | Eff% | Output | Target | Operators | ManDayMins
 
-6. **Change port to 3001** in `backend/.env` and `.env_release`
+6. **Frontend: Active Production Orders card** — fixed-height scrollable, side-by-side with Lines table
+   Columns: Line | Buyer | Style No | PO No | Ex-Factory Date
+
+7. **Change port to 3001** in `backend/.env` and `.env_release`
 
 ---
 
