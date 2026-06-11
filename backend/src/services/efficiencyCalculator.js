@@ -585,30 +585,24 @@ class EfficiencyCalculator {
    * All values are in minutes (seconds÷60 applied in SQL).
    */
   calculateManDays(productionData, fHrsWorked, fShiftDetails) {
-    // VB formula: ManDays = SectionSWGOprsLoggedIn + CurrWorkedHrs / ManDayMinutes
-    // OprsLoggedIn (from T_Fact last write) counts each logged-in operator as one full day.
-    // CurrWorkedHrs adds the real-time fraction for currently active operators.
-    const oprsLoggedIn =
-      this.I_L_SewingOpr    * (productionData.SectionSWGOprsLoggedIn || 0) +
-      this.I_L_CheckingOpr  * (productionData.SectionCHKOprsLoggedIn || 0) +
-      this.I_L_AQLOpr       * (productionData.SectionAQLOprsLoggedIn || 0) +
-      this.I_L_FinishingOpr * (productionData.SectionFINOprsLoggedIn || 0) +
-      this.I_L_PackingOpr   * (productionData.SectionPKGOprsLoggedIn || 0);
-
-    const currWorked =
-      this.I_L_SewingOpr   * this.I_L_SameDate * (productionData.CurrWorkedHrs   || 0) +
-      this.I_L_CheckingOpr * this.I_L_SameDate * (productionData.QCCurrWorkedHrs || 0);
-
-    const otMins =
-      this.I_L_NotSameDate * (productionData.SectionSWGWorkedMinsOT || 0) +
-      this.I_L_NotSameDate * this.I_L_WithOT * (productionData.SectionCHKWorkedMinsOT || 0) +
-      this.I_L_NotSameDate * this.I_L_WithOT * (productionData.SectionAQLWorkedMinsOT || 0) +
-      this.I_L_NotSameDate * this.I_L_WithOT * (productionData.SectionFINWorkedMinsOT || 0) +
-      this.I_L_NotSameDate * this.I_L_WithOT * (productionData.SectionPKGWorkedMinsOT || 0);
+    // VB formula: ManDays = (SectionXXXWorkedMins + CurrWorkedHrs + OT) / ManDayMinutes
+    const workedMins =
+      (productionData.SectionSWGWorkedMins || 0) +
+      (productionData.SectionCHKWorkedMins || 0) +
+      (productionData.SectionAQLWorkedMins || 0) +
+      (productionData.SectionFINWorkedMins || 0) +
+      (productionData.SectionPKGWorkedMins || 0) +
+      this.I_L_SameDate * (productionData.CurrWorkedHrs    || 0) +
+      this.I_L_SameDate * (productionData.QCCurrWorkedHrs  || 0) +
+      this.I_L_NotSameDate                       * (productionData.SectionSWGWorkedMinsOT || 0) +
+      this.I_L_NotSameDate * this.I_L_WithOT     * (productionData.SectionCHKWorkedMinsOT || 0) +
+      this.I_L_NotSameDate * this.I_L_WithOT     * (productionData.SectionAQLWorkedMinsOT || 0) +
+      this.I_L_NotSameDate * this.I_L_WithOT     * (productionData.SectionFINWorkedMinsOT || 0) +
+      this.I_L_NotSameDate * this.I_L_WithOT     * (productionData.SectionPKGWorkedMinsOT || 0);
 
     const md = fShiftDetails.ManDayMinutes;
     if (md === 0) return 0;
-    return Math.round(((oprsLoggedIn * md + currWorked + otMins) / md) * 10) / 10;
+    return Math.round((workedMins / md) * 10) / 10;
   }
 
   /**

@@ -401,8 +401,8 @@ router.get('/styledetails', async (req, res) => {
 router.get('/dhu', async (req, res) => {
   try {
     const { conn, masterDB, transDB } = resolveContext(req);
-    const { date, shift, lineCode } = req.query;
-    if (!date || !shift || !lineCode) return res.json([]);
+    const { date, shift, lineCode = '' } = req.query;
+    if (!date || !shift) return res.json([]);
 
     const [, m] = date.split('/').map(Number);
     const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -425,7 +425,7 @@ router.get('/dhu', async (req, res) => {
           ON a.QcOperationCode = c.QcOperationCode
         WHERE CAST(a.ProdnDate AS DATE) = CONVERT(DATE, @qdate, 103)
           AND a.ShiftCode = @shiftCode
-          AND a.LineCode  = @lineCode
+          AND (@lineCode = '' OR a.LineCode = @lineCode)
           AND c.ProcessCode IN ('004','005')
         GROUP BY c.ProcessCode
       `);
@@ -440,8 +440,8 @@ router.get('/dhu', async (req, res) => {
 router.get('/qc-defects', async (req, res) => {
   try {
     const { conn, masterDB, transDB } = resolveContext(req);
-    const { date, shift, lineCode } = req.query;
-    if (!date || !shift || !lineCode) return res.json([]);
+    const { date, shift, lineCode = '' } = req.query;
+    if (!date || !shift) return res.json([]);
 
     const [, m] = date.split('/').map(Number);
     const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -464,7 +464,7 @@ router.get('/qc-defects', async (req, res) => {
           ON a.DefectCode = d.DefectsCode
         WHERE CAST(a.ProdnDate AS DATE) = CONVERT(DATE, @qdate, 103)
           AND a.ShiftCode = @shiftCode
-          AND a.LineCode  = @lineCode
+          AND (@lineCode = '' OR a.LineCode = @lineCode)
           AND c.ProcessCode = '004'
         GROUP BY d.DefectsDesc
         HAVING SUM(a.ReWorkPcs + a.RejectedPcs) > 0
@@ -971,6 +971,8 @@ router.get('/efficiency', async (req, res) => {
 
     // ===== BATCH BREAK QUERY — one row per line (SameDate only) =====
     const breakMap = {};
+    let isBreakTime = false;
+    let factoryBreakMins = 0;
     if (I_L_SameDate) {
       const breakBatch = await pool.request()
         .input('shiftCode', sql.VarChar(10), shift)
@@ -989,6 +991,20 @@ router.get('/efficiency', async (req, res) => {
           GROUP BY LineCode
         `);
       breakBatch.recordset.forEach(r => { breakMap[r.LineCode] = r.BreakMinsTillNow; });
+      factoryBreakMins = Object.values(breakMap).length > 0 ? Math.max(...Object.values(breakMap)) : 0;
+
+      // Detect if current time falls within any active break window
+      const breakCheck = await pool.request()
+        .input('shiftCode', sql.VarChar(10), shift)
+        .query(`
+          DECLARE @CTime TIME = CONVERT(TIME, GETDATE());
+          DECLARE @WDay  INT  = DATEPART(WEEKDAY, GETDATE());
+          SELECT COUNT(*) AS InBreak
+          FROM [${masterDB}]..M_ShiftLineBreak
+          WHERE ShiftCode = @shiftCode AND Active = 'Y' AND WeekDayNo = @WDay
+            AND @CTime BETWEEN CAST(BreakStartTime AS TIME) AND CAST(BreakEndTime AS TIME)
+        `);
+      isBreakTime = (breakCheck.recordset[0]?.InBreak || 0) > 0;
     }
 
     // ===== EFFICIENCY SETTINGS =====
@@ -1044,13 +1060,12 @@ router.get('/efficiency', async (req, res) => {
     }
 
     function getOperators(calc, row) {
-      return (
-        calc.I_L_SewingOpr    * (row.SectionSWGOprsAtt || 0) +
-        calc.I_L_CheckingOpr  * (row.SectionCHKOprsAtt || 0) +
-        calc.I_L_AQLOpr       * (row.SectionAQLOprsAtt || 0) +
-        calc.I_L_FinishingOpr * (row.SectionFINOprsAtt || 0) +
-        calc.I_L_PackingOpr   * (row.SectionPKGOprsAtt || 0)
-      );
+      if (calc.I_L_SameDate) {
+        return (row.CurrNoOfOprsLoggedIn || 0) + (row.CurrNoOfQcOprsLoggedIn || 0);
+      }
+      return (row.SectionSWGOprsLoggedIn || 0) + (row.SectionCHKOprsLoggedIn || 0) +
+             (row.SectionAQLOprsLoggedIn || 0) + (row.SectionFINOprsLoggedIn || 0) +
+             (row.SectionPKGOprsLoggedIn || 0);
     }
 
     // ===== PER-LINE LOOP =====
@@ -1088,7 +1103,9 @@ router.get('/efficiency', async (req, res) => {
 
       const lineAllWs      = g('SectionSWGCapacityWs')+g('SectionCHKCapacityWs')+g('SectionAQLCapacityWs')+g('SectionFINCapacityWs')+g('SectionPKGCapacityWs');
       const lineAllActiveWs= g('SectionSWGActualWs')+g('SectionCHKActualWs')+g('SectionAQLActualWs')+g('SectionFINActualWs')+g('SectionPKGActualWs');
-      const lineAllOprs    = g('SectionSWGOprsAtt')+g('SectionCHKOprsAtt')+g('SectionAQLOprsAtt')+g('SectionFINOprsAtt')+g('SectionPKGOprsAtt');
+      const lineAllOprs    = I_L_SameDate
+        ? (g('CurrNoOfOprsLoggedIn') + g('CurrNoOfQcOprsLoggedIn'))
+        : (g('SectionSWGOprsLoggedIn')+g('SectionCHKOprsLoggedIn')+g('SectionAQLOprsLoggedIn')+g('SectionFINOprsLoggedIn')+g('SectionPKGOprsLoggedIn'));
 
       lines.push({
         lineCode:      lineRow.LineCode,
@@ -1167,6 +1184,7 @@ router.get('/efficiency', async (req, res) => {
         wip:          totalWip,
         targetEff:    prodRows.length > 0 ? Math.round(totalTargetEff / prodRows.length) : 0,
         shiftTime:    shiftData.ShiftTime || 480,
+        manDayMinutes: I_L_SameDate ? (minutesSinceShiftStart - factoryBreakMins) : (shiftData.ShiftTime || 480),
         chkPassed: totalChkPassed, chkRw: totalChkRw, chkRj: totalChkRj,
         aqlPassed: totalAqlPassed, aqlRw: totalAqlRw, aqlRj: totalAqlRj,
         finPassed: totalFinPassed, finRw: totalFinRw, finRj: totalFinRj,
@@ -1177,6 +1195,7 @@ router.get('/efficiency', async (req, res) => {
         suprAlertReceived: totalSuprRx, suprAlertAttended: totalSuprAtt,
       },
       shiftElapsed: minutesSinceShiftStart,
+      isBreakTime,
       flags: calculator.getFlags(),
       metadata: {
         calculationTime: `${duration}ms`,
