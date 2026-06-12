@@ -1799,12 +1799,41 @@ router.get('/active-orders', async (req, res) => {
     const fyStart = `${fyStartYear}-04-01`;
     const fyEnd   = `${fyStartYear + 1}-03-31`;
     const transPool = await getPool(conn, transDB);
+
+    // Determine which output column to use (same logic as /efficiency)
+    let cumPcsExpr = 'SewnPcs + OTSewnPcs';
+    const settingsCacheKey = `bundle_settings:${masterDB}`;
+    let cfgStr = cacheGet(settingsCacheKey);
+    if (!cfgStr) {
+      try {
+        const cfgPool = await getPool(conn, masterDB);
+        const cfgResult = await cfgPool.request().query(`
+          SELECT TOP 1 LineEffDefaultSettings
+          FROM [${masterDB}]..M_BundleSettings
+          WHERE LineEffDefaultSettings IS NOT NULL AND LineEffDefaultSettings != ''
+        `);
+        cfgStr = cfgResult.recordset[0]?.LineEffDefaultSettings || null;
+        if (cfgStr) cacheSet(settingsCacheKey, cfgStr);
+      } catch (_) {}
+    }
+    if (cfgStr) {
+      try {
+        const cfgCalc = new EfficiencyCalculator(false);
+        cfgCalc.dispEffSettings(cfgStr);
+        if      (cfgCalc.I_L_Output_QC        === 1) cumPcsExpr = 'QcPassedPcs + QcOtPassedPcs';
+        else if (cfgCalc.I_L_Output_AQL       === 1) cumPcsExpr = 'QcAqlPassedPcs + QcOtAqlPassedPcs';
+        else if (cfgCalc.I_L_Output_Finishing === 1) cumPcsExpr = 'QcFinishingPassedPcs + QcFinishingOTPassedPcs';
+        else if (cfgCalc.I_L_Output_Packing   === 1) cumPcsExpr = 'QcPackingPassedPcs + QcPackingOTPassedPcs';
+      } catch (_) {}
+    }
+
+    // FY cumulative production per style/PO/line from T_FactStyleProduction
     const cumResult = await transPool.request()
       .input('fyStart', sql.VarChar(20), fyStart)
       .input('fyEnd',   sql.VarChar(20), fyEnd)
       .query(`
         SELECT StyleCode, PoSlNo, LineCode,
-               SUM(SewnPcs + OTSewnPcs) AS CumPrdnPcs,
+               SUM(${cumPcsExpr}) AS CumPrdnPcs,
                COUNT(DISTINCT ProdnDate) AS RunningDays
         FROM [${transDB}]..T_FactStyleProduction WITH (NOLOCK)
         WHERE ProdnDate >= @fyStart AND ProdnDate <= @fyEnd
@@ -1812,12 +1841,14 @@ router.get('/active-orders', async (req, res) => {
         GROUP BY StyleCode, PoSlNo, LineCode
       `);
 
-    const cumMap = {};  // key: `${sc}_${po}` → total factory pcs
-    const rdMap  = {};  // key: `${sc}_${po}_${lc}` → per-line running days
+    const cumMap     = {};  // `${sc}_${po}` → total factory pcs
+    const rdMap      = {};  // `${sc}_${po}_${lc}` → per-line running days
+    const linePcsMap = {};  // `${sc}_${po}_${lc}` → per-line cumulative pcs
     cumResult.recordset.forEach(r => {
       const k = `${r.StyleCode}_${r.PoSlNo}`;
-      cumMap[k] = (cumMap[k] || 0) + (r.CumPrdnPcs || 0);
-      rdMap[`${k}_${r.LineCode}`] = r.RunningDays || 0;
+      cumMap[k]                        = (cumMap[k] || 0) + (r.CumPrdnPcs || 0);
+      rdMap[`${k}_${r.LineCode}`]      = r.RunningDays || 0;
+      linePcsMap[`${k}_${r.LineCode}`] = r.CumPrdnPcs  || 0;
     });
 
     const result = [];
@@ -1837,6 +1868,7 @@ router.get('/active-orders', async (req, res) => {
         lines: sl.lines.map(l => ({
           lineCode:    l.lineCode,
           lineName:    l.lineName,
+          prodnPcs:    linePcsMap[`${key}_${l.lineCode}`] || 0,
           runningDays: rdMap[`${key}_${l.lineCode}`] || 0,
         })),
       });

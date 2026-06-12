@@ -42,7 +42,18 @@ const ThemeCtx = createContext(DARK);
 function toApiDate(s) { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; }
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function toDisplayDate(s) { const [y, m, d] = s.split('-'); return `${d}/${MONTHS[parseInt(m,10)-1]}/${y}`; }
-function fmtDate(v) { if (!v) return '—'; const d = new Date(v); if (isNaN(d)) return v; return `${String(d.getDate()).padStart(2,'0')}/${MONTHS[d.getMonth()]}/${d.getFullYear()}`; }
+function fmtDate(v) {
+  if (!v) return '—';
+  // SQL Server format 103: dd/mm/yyyy
+  const f103 = String(v).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (f103) return `${f103[1]}/${MONTHS[parseInt(f103[2],10)-1]}/${f103[3]}`;
+  // ISO: yyyy-mm-dd[T...]
+  const iso = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${MONTHS[parseInt(iso[2],10)-1]}/${iso[1]}`;
+  const d = new Date(v);
+  if (isNaN(d)) return v;
+  return `${String(d.getDate()).padStart(2,'0')}/${MONTHS[d.getMonth()]}/${d.getFullYear()}`;
+}
 function todayISO() {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
@@ -230,6 +241,12 @@ export default function Dashboard({ onLogout }) {
   const factory    = factoryData?.factory || {};
   const lines      = factoryData?.lines   || [];
   const shiftElapsed  = factoryData?.shiftElapsed || 0;
+  const flags      = factoryData?.flags   || {};
+  const outputName = flags.I_L_Output_QC        ? 'End Line Checking'
+                   : flags.I_L_Output_AQL       ? 'AQL'
+                   : flags.I_L_Output_Finishing ? 'Finishing'
+                   : flags.I_L_Output_Packing   ? 'Packing'
+                   : 'Sewing';
   const isSameDate    = factoryData?.metadata?.isSameDate || false;
   const shiftTime     = factory.shiftTime || 480;
 
@@ -256,14 +273,17 @@ export default function Dashboard({ onLogout }) {
   const actualOutputPerHr = shiftElapsed > 0 ? outputPcs / (shiftElapsed / 60) : 0;
   const targetEff     = factory.targetEff || 0;
 
-  const oeeAvailability = shiftTime > 0
-    ? Math.round((isSameDate ? shiftElapsed : shiftTime) / shiftTime * 100)
+  const shiftTimeTillNow = isSameDate ? shiftElapsed : shiftTime;
+  const activeWsOee     = factory.activeWs || 0;
+  const oeeAvailability = activeWsOee > 0 && shiftTimeTillNow > 0
+    ? Math.min(100, Math.round((factory.availMins || 0) / (shiftTimeTillNow * activeWsOee) * 100))
     : 0;
-  const oeePerformance  = (factory.target || 0) > 0
-    ? Math.round((factory.output || 0) / factory.target * 100) : 0;
+  const oeePerformance  = (factory.availMins || 0) > 0
+    ? Math.min(100, Math.round((factory.earnedMins || 0) / factory.availMins * 100))
+    : 0;
   const chkChecked      = (factory.chkPassed||0)+(factory.chkRw||0)+(factory.chkRj||0);
-  const oeeQuality      = chkChecked > 0 ? Math.round((factory.chkPassed||0) / chkChecked * 100) : 100;
-  const oeeScore        = Math.round(oeeAvailability * oeePerformance * oeeQuality / 10000);
+  const oeeQuality      = chkChecked > 0 ? Math.min(100, Math.round((factory.chkPassed||0) / chkChecked * 100)) : 0;
+  const oeeScore        = Math.round((oeeAvailability/100) * (oeePerformance/100) * (oeeQuality/100) * 100);
 
   const wsUpPct   = totalWs > 0 ? Math.round(activeWs / totalWs * 100) : 0;
   const pcsGap    = Math.round(outputPcs - currTargetPcs);
@@ -469,7 +489,10 @@ export default function Dashboard({ onLogout }) {
                 <Card title="Target vs Actual" subtitle="All Lines" icon="🆚"
                   badge={
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginBottom: 2 }}>Curr Target vs Actuals</div>
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginBottom: 2 }}>
+                        <span style={{ color: 'rgba(255,255,255,0.75)', marginRight: 4 }}>({outputName})</span>
+                        Curr Target vs Actuals
+                      </div>
                       <div style={{ fontSize: 13, fontWeight: 800, color: taColor }}>
                         {fmt(currTargetPcs)} vs {fmt(outputPcs)} = {taEff}%
                       </div>
@@ -538,7 +561,12 @@ export default function Dashboard({ onLogout }) {
 
               {/* ── Row 2: Active Production Orders — style-level ── */}
               <Card title="Active Production Orders" icon="📋"
-                badge={<span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>{activeOrders.length} styles</span>}
+                badge={
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>
+                    <span style={{ fontSize: 10, fontWeight: 400, color: 'rgba(255,255,255,0.75)', marginRight: 5 }}>({outputName})</span>
+                    {activeOrders.length} styles
+                  </span>
+                }
                 bodyStyle={{ padding: 0 }}>
                 <div style={{ overflowY: 'auto', maxHeight: 320 }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -595,9 +623,14 @@ export default function Dashboard({ onLogout }) {
               </Card>
 
               {/* ── Row 3: Hourly Production + OEE ── */}
-              <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
-                <Card title={`Hourly Production — ${lineWiseHourly.section}`} icon="📊"
-                  badge={<span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>Factory Total</span>}
+              <div style={{ display: 'flex', gap: 12, alignItems: 'stretch', height: 260 }}>
+                <Card title="Hourly Production" icon="📊"
+                  badge={
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>
+                      <span style={{ fontSize: 10, fontWeight: 400, color: 'rgba(255,255,255,0.75)', marginRight: 5 }}>({outputName})</span>
+                      Total: {fmt(outputPcs)} pcs
+                    </span>
+                  }
                   style={{ flex: 2, minWidth: 0, display: 'flex', flexDirection: 'column' }}
                   bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                   {hourlyChartData.length === 0 ? (
@@ -610,12 +643,12 @@ export default function Dashboard({ onLogout }) {
                           <XAxis dataKey="name" tick={{ fontSize: 11, fill: C.textSub }} axisLine={false} tickLine={false} />
                           <YAxis tick={{ fontSize: 11, fill: C.textSub }} axisLine={false} tickLine={false} />
                           <Tooltip contentStyle={{ background: C.card, border: `1px solid ${C.cardBorder}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: C.text, fontWeight: 600 }} />
-                          <ReferenceLine y={totalHrTarget} stroke={C.amber} strokeDasharray="4 4" label={{ value: 'Target', fill: C.amber, fontSize: 10 }} />
                           <Bar dataKey="output" name="Output" radius={[3, 3, 0, 0]}>
                             {hourlyChartData.map((d, i) => (
                               <Cell key={i} fill={d.output >= d.target ? C.green : C.red} />
                             ))}
                           </Bar>
+                          <RLine type="monotone" dataKey="target" name="Target/hr" stroke={C.amber} strokeWidth={2} dot={false} strokeDasharray="5 4" />
                         </ComposedChart>
                       </ResponsiveContainer>
                     </div>
@@ -623,9 +656,9 @@ export default function Dashboard({ onLogout }) {
                 </Card>
 
                 <Card title="OEE Overview" subtitle="Overall Equipment Effectiveness" icon="⚙️" style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 6px' }}>
                     {(() => {
-                      const R = 50, SIZE = 120, circ = 2 * Math.PI * R;
+                      const R = 46, SIZE = 108, circ = 2 * Math.PI * R;
                       const off = circ * (1 - Math.min(100, oeeScore) / 100);
                       const col = effColor(C, oeeScore);
                       return (
@@ -634,24 +667,21 @@ export default function Dashboard({ onLogout }) {
                           <circle cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke={col} strokeWidth={8}
                             strokeDasharray={circ} strokeDashoffset={off}
                             strokeLinecap="round" transform={`rotate(-90 ${SIZE/2} ${SIZE/2})`} />
-                          <text x={SIZE/2} y={SIZE/2-6} textAnchor="middle" fontSize={22} fontWeight={800} fill={col}>{oeeScore}</text>
-                          <text x={SIZE/2} y={SIZE/2+14} textAnchor="middle" fontSize={12} fill={C.textSub}>OEE%</text>
+                          <text x={SIZE/2} y={SIZE/2-5} textAnchor="middle" dominantBaseline="central" fontSize={20} fontWeight={800} fill={col}>{oeeScore.toFixed(1)}%</text>
+                          <text x={SIZE/2} y={SIZE/2+14} textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={600} fill={C.textSub}>OEE Score</text>
                         </svg>
                       );
                     })()}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
                     {[
-                      { label: 'Availability', value: oeeAvailability, color: C.blue },
-                      { label: 'Performance',  value: oeePerformance,  color: C.green },
-                      { label: 'Quality',      value: oeeQuality,      color: C.purple },
+                      { label: 'Availability', value: oeeAvailability, color: C.green },
+                      { label: 'Performance',  value: oeePerformance,  color: '#1565C0' },
+                      { label: 'Quality',      value: oeeQuality,      color: C.amber },
                     ].map(({ label, value, color }) => (
-                      <div key={label} style={{ background: C.tealDim, borderRadius: 8, padding: '8px 12px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, color: C.textSub }}>{label}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color }}>{value}%</span>
-                        </div>
-                        <ProgBar pct={value} color={color} />
+                      <div key={label} style={{ background: C.tealDim, borderRadius: 8, padding: '8px 6px', textAlign: 'center', border: `1px solid ${C.cardBorder}` }}>
+                        <div style={{ fontSize: 16, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(value)}%</div>
+                        <div style={{ fontSize: 9, fontWeight: 600, color: C.textSub, marginTop: 3, letterSpacing: 0.8 }}>{label}</div>
                       </div>
                     ))}
                   </div>
@@ -661,14 +691,14 @@ export default function Dashboard({ onLogout }) {
               {/* ── Row 4: Top 5 Lines + Needs Improvement (colored headers) ── */}
               <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
                 {[
-                  { title: 'Top 5 Lines', icon: '👍', rows: top5Lines, accent: '#16a34a', rankBg: '#dcfce7', rankColor: '#15803d' },
+                  { title: 'Top Performing Lines', icon: '👍', rows: top5Lines, accent: '#16a34a', rankBg: '#dcfce7', rankColor: '#15803d' },
                   { title: 'Needs Improvement', icon: '👎', rows: bottom5Lines, accent: '#dc2626', rankBg: '#fee2e2', rankColor: '#991b1b' },
                 ].map(({ title, icon, rows, accent, rankBg, rankColor }) => (
                   <div key={title} style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ background: accent, borderRadius: '10px 10px 0 0', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 17 }}>{icon}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', flex: 1 }}>{title}</span>
-                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>{rows.length} lines</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{rows.length} lines</span>
                     </div>
                     <div style={{ background: C.card, border: `1px solid ${C.cardBorder}`, borderTop: 'none', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -805,7 +835,7 @@ export default function Dashboard({ onLogout }) {
                     {/* Right column: Defect Analysis */}
                     {hasDefects && (
                       <Card title="Defect Analysis" icon="🔍"
-                        badge={<span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>Defect breakdown by type</span>}
+                        badge={<span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>Defect breakdown by type</span>}
                         style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 11, color: C.textSub, marginBottom: 12 }}>
                           Factory defect breakdown — Total: <b style={{ color: C.text }}>{defTotal.toLocaleString()}</b> defects
@@ -893,10 +923,9 @@ export default function Dashboard({ onLogout }) {
                 );
               })()}
 
-              {/* ── Row 6: DownTime Analysis + Alerts ── */}
+              {/* ── Row 6: DownTime Analysis ── */}
               <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
                 <Card title="DownTime Analysis" icon="📉"
-                  badge={<span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>Lost time breakdown</span>}
                   style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 11, color: C.textSub, marginBottom: 10 }}>
                     Clocked Minutes: <b style={{ color: C.text }}>{clockedMins.toLocaleString()}</b>
@@ -927,31 +956,6 @@ export default function Dashboard({ onLogout }) {
                     })}
                   </div>
                 </Card>
-
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {[
-                    { title: 'Maintenance Alerts', rx: factory.mechAlertReceived||0, att: factory.mechAlertAttended||0, color: '#f97316', icon: '🔔' },
-                    { title: 'Supervisor Alerts',  rx: factory.suprAlertReceived||0, att: factory.suprAlertAttended||0, color: '#8b5cf6', icon: '📢' },
-                  ].map(({ title, rx, att, color, icon }) => {
-                    const pending = Math.max(0, rx - att);
-                    return (
-                      <Card key={title} title={title} icon={icon} style={{ flex: 1 }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 4 }}>
-                          {[
-                            { label: 'Received', value: rx,      col: color },
-                            { label: 'Attended', value: att,     col: rx > 0 ? (att >= rx ? C.green : C.amber) : C.text },
-                            { label: 'Pending',  value: pending, col: pending > 0 ? C.red : C.green },
-                          ].map(({ label, value, col }) => (
-                            <div key={label} style={{ background: C.tealDim, borderRadius: 10, padding: '10px', border: `1px solid ${C.cardBorder}`, textAlign: 'center' }}>
-                              <div style={{ fontSize: 10, fontWeight: 700, color: C.textSub, letterSpacing: 1.1, marginBottom: 6 }}>{label}</div>
-                              <div style={{ fontSize: 24, fontWeight: 800, color: col, lineHeight: 1 }}>{Math.round(value)}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
               </div>
 
 
@@ -991,10 +995,10 @@ export default function Dashboard({ onLogout }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: C.tableTh }}>
-                      {['#', 'Line', 'Running Days'].map((h, i) => (
+                      {['#', 'Line', 'Prodn Pcs', 'Running Days'].map((h, i) => (
                         <th key={h} style={{
                           padding: '8px 12px', fontSize: 11, fontWeight: 700, color: C.textSub,
-                          textAlign: i === 2 ? 'right' : 'left',
+                          textAlign: i >= 2 ? 'right' : 'left',
                           borderBottom: `2px solid ${C.tableBorder}`,
                         }}>{h}</th>
                       ))}
@@ -1005,6 +1009,7 @@ export default function Dashboard({ onLogout }) {
                       <tr key={l.lineCode} style={{ background: i % 2 === 0 ? C.tableRow : C.tableRowAlt, borderBottom: `1px solid ${C.tableBorder}` }}>
                         <td style={{ padding: '9px 12px', color: C.textMuted, fontSize: 12 }}>{i + 1}</td>
                         <td style={{ padding: '9px 12px', fontWeight: 600, color: C.text }}>{l.lineName}</td>
+                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.green }}>{fmt(l.prodnPcs)}</td>
                         <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.teal }}>{l.runningDays}</td>
                       </tr>
                     ))}
