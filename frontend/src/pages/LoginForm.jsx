@@ -194,6 +194,9 @@ export default function LoginForm({ onLogin, onSettings }) {
             <sup style={{ fontSize: 11, verticalAlign: 'super', letterSpacing: 0, color: '#00AEEF' }}>®</sup>
           </span>
         </span>
+        <span style={{ fontSize: 15, fontWeight: 700, color: '#fff', letterSpacing: 0.5 }}>
+          Dashboard — Factory
+        </span>
         <button
           onClick={onSettings}
           title="Connection Settings"

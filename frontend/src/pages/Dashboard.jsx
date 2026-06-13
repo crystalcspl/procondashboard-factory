@@ -136,6 +136,501 @@ function FilterField({ label, children, onDark }) {
   );
 }
 
+const VT_LABELS = [['4','Style'],['3','Style-Po'],['2','Style-Po-Color'],['1','Style-Po-Color-Size']];
+
+// Each pipeline stage has its own accent color; sectionStart marks the first group of a new stage
+const DPR_DATA_GROUPS = [
+  { label: 'Cutting',    color: '#b45309', sectionStart: true,  cols: [{ label: 'Today', f: 'CuttingToday', wip: false }, { label: 'Cum', f: 'CuttingCum', wip: false }, { label: 'Bal',  f: 'CuttingBalance', wip: true }] },
+  { label: 'Feeding',    color: '#6d28d9', sectionStart: true,  cols: [{ label: 'Today', f: 'FeedingToday', wip: false }, { label: 'Cum', f: 'FeedingCum',  wip: false }, { label: 'WIP',  f: 'FeedingWIP',     wip: true }] },
+  { label: 'Sewing',     color: '#1565C0', sectionStart: true,  cols: [{ label: 'Today', f: 'SewnToday',    wip: false }, { label: 'Cum', f: 'SewnCum',      wip: false }, { label: 'WIP',  f: 'SewnWIP',         wip: true }] },
+  { label: 'QC Passed',  color: '#0891b2', sectionStart: true,  cols: [{ label: 'Today', f: 'ChkPassedToday', wip: false }, { label: 'Cum', f: 'ChkPassedCum', wip: false }] },
+  { label: 'QC Rej',     color: '#0e7490', sectionStart: false, cols: [{ label: 'Today', f: 'ChkRejToday',   wip: false }, { label: 'Cum', f: 'ChkRejCum',    wip: false }] },
+  { label: 'QC WIP',     color: '#155e75', sectionStart: false, cols: [{ label: 'WIP',   f: 'ChkWIP',        wip: true  }] },
+  { label: 'AQL Passed', color: '#047857', sectionStart: true,  cols: [{ label: 'Today', f: 'AQLPassedToday', wip: false }, { label: 'Cum', f: 'AQLPassedCum', wip: false }] },
+  { label: 'AQL Rej',    color: '#065f46', sectionStart: false, cols: [{ label: 'Today', f: 'AQLRejToday',    wip: false }, { label: 'Cum', f: 'AQLRejCum',    wip: false }] },
+  { label: 'AQL WIP',    color: '#064e3b', sectionStart: false, cols: [{ label: 'WIP',   f: 'AQLWIP',         wip: true  }] },
+  { label: 'Fin Passed', color: '#9a3412', sectionStart: true,  cols: [{ label: 'Today', f: 'FinPassedToday', wip: false }, { label: 'Cum', f: 'FinPassedCum', wip: false }] },
+  { label: 'Fin Rej',    color: '#7c2d12', sectionStart: false, cols: [{ label: 'Today', f: 'FinRejToday',    wip: false }, { label: 'Cum', f: 'FinRejCum',    wip: false }] },
+  { label: 'Fin WIP',    color: '#6c2a10', sectionStart: false, cols: [{ label: 'WIP',   f: 'FinWIP',         wip: true  }] },
+  { label: 'Packing',    color: '#be185d', sectionStart: true,  cols: [{ label: 'Today', f: 'PkgToday',       wip: false }, { label: 'Cum', f: 'PkgCum',       wip: false }, { label: 'WIP', f: 'PkgWIP',         wip: true }] },
+  { label: 'Despatch',   color: '#1e40af', sectionStart: true,  cols: [{ label: 'Today', f: 'DespatchToday',  wip: false }, { label: 'Cum', f: 'DespatchCum',  wip: false }, { label: 'WIP', f: 'DespatchWIP',    wip: true }] },
+];
+const DPR_ALL_DATA_FIELDS = DPR_DATA_GROUPS.flatMap(g => g.cols.map(c => c.f));
+// Flat list of every data column annotated with its group color, section-start flag, and wip flag
+const DPR_FLAT_COLS = DPR_DATA_GROUPS.flatMap(g =>
+  g.cols.map((c, ci) => ({ ...c, color: g.color, sectionStart: ci === 0 && g.sectionStart }))
+);
+
+const DPR_ID_COLS = {
+  '1': [{ label: 'Style No', f: 'StyleNo' }, { label: 'P.O. No', f: 'PoNo' }, { label: 'Destination', f: 'DestinationName' }, { label: 'Color', f: 'ColorName' }, { label: 'Size', f: 'SizeName' }, { label: 'Order Qty', f: 'OrderQty', num: true }],
+  '2': [{ label: 'Style No', f: 'StyleNo' }, { label: 'P.O. No', f: 'PoNo' }, { label: 'Destination', f: 'DestinationName' }, { label: 'Color', f: 'ColorName' }, { label: 'Order Qty', f: 'OrderQty', num: true }],
+  '3': [{ label: 'Style No', f: 'StyleNo' }, { label: 'P.O. No', f: 'PoNo' }, { label: 'Destination', f: 'DestinationName' }, { label: 'Order Qty', f: 'OrderQty', num: true }],
+  '4': [{ label: 'Style No', f: 'StyleNo' }, { label: 'Order Qty', f: 'OrderQty', num: true }],
+};
+
+function dprSumRows(rows) {
+  return DPR_ALL_DATA_FIELDS.reduce(
+    (acc, f) => { acc[f] = rows.reduce((s, r) => s + (Number(r[f]) || 0), 0); return acc; },
+    { OrderQty: rows.reduce((s, r) => s + (Number(r.OrderQty) || 0), 0) }
+  );
+}
+
+function DPRModal({ open, onClose, rows, loading, error, viewType, onViewTypeChange, dateInput, shift, shifts, masterDB, transDB }) {
+  const C = useContext(ThemeCtx);
+
+  // ── Staged filter state (applied only on Refresh) ────────────────
+  const [localVt,    setLocalVt]    = useState(viewType);
+  const [localDate,  setLocalDate]  = useState(dateInput);
+  const [localShift, setLocalShift] = useState(shift);
+
+  // ── Cascade filter state ──────────────────────────────────────────
+  const [buyers,      setBuyers]      = useState([]);
+  const [buyerStyles, setBuyerStyles] = useState([]);
+  const [buyerPos,    setBuyerPos]    = useState([]);
+  const [selBuyer,    setSelBuyer]    = useState('');
+  const [selStyle,    setSelStyle]    = useState('');
+  const [selPo,       setSelPo]       = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setLocalVt(viewType);
+    setLocalDate(dateInput);
+    setLocalShift(shift);
+    setSelBuyer(''); setSelStyle(''); setSelPo(''); setBuyerStyles([]); setBuyerPos([]);
+    const p = new URLSearchParams({ masterDB, transDB });
+    axios.get(`/api/dashboard/dpr-buyers?${p}`)
+      .then(r => setBuyers(r.data || [])).catch(() => setBuyers([]));
+  }, [open]); // eslint-disable-line
+
+  useEffect(() => {
+    setBuyerStyles([]); setSelStyle(''); setBuyerPos([]); setSelPo('');
+    if (!selBuyer) return;
+    const p = new URLSearchParams({ masterDB, transDB, buyerCode: selBuyer });
+    axios.get(`/api/dashboard/dpr-styles?${p}`)
+      .then(r => setBuyerStyles(r.data || [])).catch(() => setBuyerStyles([]));
+  }, [selBuyer]); // eslint-disable-line
+
+  useEffect(() => {
+    setBuyerPos([]); setSelPo('');
+    if (!selBuyer || !selStyle) return;
+    const p = new URLSearchParams({ masterDB, transDB, buyerCode: selBuyer, styleCode: selStyle });
+    axios.get(`/api/dashboard/dpr-pos?${p}`)
+      .then(r => setBuyerPos(r.data || [])).catch(() => setBuyerPos([]));
+  }, [selStyle]); // eslint-disable-line
+
+  if (!open) return null;
+
+  // ── Derived ───────────────────────────────────────────────────────
+  const idCols       = DPR_ID_COLS[viewType];
+  const leadingCount = idCols.length - 1;  // all idCols except OrderQty
+  const grandTotal   = dprSumRows(rows);
+  const borderB      = `1px solid ${C.tableBorder}`;
+  const idThBase     = { padding: '5px 9px', fontSize: 10, fontWeight: 700, background: '#1565C0', color: '#fff', whiteSpace: 'nowrap', textAlign: 'center', borderBottom: '2px solid rgba(255,255,255,0.25)', borderRight: `1px solid rgba(255,255,255,0.2)` };
+  const idTdBase     = { padding: '5px 9px', fontSize: 11, whiteSpace: 'nowrap', borderBottom: borderB, borderRight: `1px solid ${C.tableBorder}`, verticalAlign: 'top' };
+
+  // ── Cell components ───────────────────────────────────────────────
+  const DataCell = ({ col, value }) => {
+    const v = Number(value) || 0;
+    return (
+      <td style={{
+        padding: '5px 8px', fontSize: 11, textAlign: 'right', whiteSpace: 'nowrap',
+        borderBottom: borderB,
+        borderLeft: col.sectionStart ? `2px solid ${col.color}` : `1px solid ${C.tableBorder}`,
+        color: v < 0 ? '#dc2626' : v === 0 ? C.textMuted : C.text,
+        fontWeight: v < 0 ? 700 : 400,
+        fontStyle: col.wip ? 'italic' : 'normal',
+        background: col.wip ? `${col.color}08` : 'transparent',
+      }}>
+        {v === 0 ? '—' : v.toLocaleString()}
+      </td>
+    );
+  };
+
+  const SubTotalCell = ({ col, value, bg, textCol }) => {
+    const v = Number(value) || 0;
+    return (
+      <td style={{
+        padding: '5px 8px', fontSize: 11, fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap',
+        borderBottom: borderB,
+        borderLeft: col.sectionStart ? `2px solid ${col.color}` : `1px solid ${C.tableBorder}`,
+        color: v < 0 ? '#dc2626' : v === 0 ? C.textMuted : (textCol || '#1565C0'),
+        background: bg || '#EFF6FF',
+        fontStyle: col.wip ? 'italic' : 'normal',
+      }}>
+        {v === 0 ? '—' : v.toLocaleString()}
+      </td>
+    );
+  };
+
+  const GrandTotalCell = ({ col, value }) => {
+    const v = Number(value) || 0;
+    return (
+      <td style={{
+        padding: '5px 8px', fontSize: 11, fontWeight: 800, textAlign: 'right', whiteSpace: 'nowrap',
+        borderLeft: col.sectionStart ? `2px solid rgba(255,255,255,0.4)` : `1px solid rgba(255,255,255,0.15)`,
+        color: v < 0 ? '#fca5a5' : v === 0 ? 'rgba(255,255,255,0.35)' : '#fff',
+        background: '#1565C0',
+        fontStyle: col.wip ? 'italic' : 'normal',
+      }}>
+        {v === 0 ? '—' : v.toLocaleString()}
+      </td>
+    );
+  };
+
+  // ── Helpers ───────────────────────────────────────────────────────
+  const groupConsec = (arr, keyFn) => {
+    const result = [];
+    arr.forEach(item => {
+      const key = keyFn(item);
+      const last = result[result.length - 1];
+      if (last && last.key === key) last.items.push(item);
+      else result.push({ key, items: [item] });
+    });
+    return result;
+  };
+
+  // covered leading id-cols by subtotal level (StyleNo=1, PoNo+Dest=2 more, Color=1 more)
+  const COVERED = { 0: 0, 1: 1, 2: 3, 3: 4 };
+
+  const SUB_STYLES = [
+    { bg: '#DBEAFE', text: '#1565C0', border: '#BFDBFE' },
+    { bg: '#EFF6FF', text: '#1e40af', border: '#BFDBFE' },
+    { bg: '#F0FDF4', text: '#166534', border: '#BBF7D0' },
+    { bg: '#FFF7ED', text: '#9A3412', border: '#FED7AA' },
+  ];
+
+  // ── Pre-compute flat row list with rowSpan values ─────────────────
+  // For each descriptor:
+  //   type='data': bSpan=null(covered)|N, sSpan=null|N, pSpan=null|N|undefined(N/A), cSpan=null|N|undefined
+  //   type='sub':  level, rows, label
+
+  const colTtl = (cg) => cg.items.length + (cg.items.length > 1 ? 1 : 0);
+
+  const poTtl = (pg) => {
+    if (viewType === '2') return pg.items.length + (pg.items.length > 1 ? 1 : 0);
+    const cgs = groupConsec(pg.items, r => r.ColorCode);
+    return pg.items.length + cgs.filter(c => c.items.length > 1).length + (cgs.length > 1 ? 1 : 0);
+  };
+
+  const styleTtl = (sg) => {
+    const n = sg.items.length;
+    if (viewType === '3') return n + (n > 1 ? 1 : 0);
+    const pgs = groupConsec(sg.items, r => r.PoSlNo);
+    if (viewType === '2') {
+      return n + pgs.filter(pg => pg.items.length > 1).length + (pgs.length > 1 ? 1 : 0);
+    }
+    let tot = n;
+    pgs.forEach(pg => {
+      const cgs = groupConsec(pg.items, r => r.ColorCode);
+      tot += cgs.filter(c => c.items.length > 1).length + (cgs.length > 1 ? 1 : 0);
+    });
+    return tot + (pgs.length > 1 ? 1 : 0);
+  };
+
+  const buyerTtl = (items) => {
+    if (viewType === '4') return items.length + (items.length > 1 ? 1 : 0);
+    const sgs = groupConsec(items, r => r.StyleCode);
+    let n = items.length;
+    if (viewType === '3') {
+      return n + sgs.filter(sg => sg.items.length > 1).length + (sgs.length > 1 ? 1 : 0);
+    }
+    if (viewType === '2') {
+      sgs.forEach(sg => {
+        const pgs = groupConsec(sg.items, r => r.PoSlNo);
+        n += pgs.filter(pg => pg.items.length > 1).length + (pgs.length > 1 ? 1 : 0);
+      });
+      return n + (sgs.length > 1 ? 1 : 0);
+    }
+    sgs.forEach(sg => {
+      const pgs = groupConsec(sg.items, r => r.PoSlNo);
+      pgs.forEach(pg => {
+        const cgs = groupConsec(pg.items, r => r.ColorCode);
+        n += cgs.filter(c => c.items.length > 1).length + (cgs.length > 1 ? 1 : 0);
+      });
+      n += pgs.length > 1 ? 1 : 0;
+    });
+    return n + (sgs.length > 1 ? 1 : 0);
+  };
+
+  const flat = [];
+  const bgGroups = groupConsec(rows, r => r.BuyerCode);
+
+  bgGroups.forEach((buyer, bi) => {
+    const bSpan = buyerTtl(buyer.items);
+    let firstB = true;
+
+    if (viewType === '4') {
+      buyer.items.forEach((row, ri) => {
+        flat.push({ type: 'data', key: `${bi}-${ri}`, row, bSpan: firstB ? bSpan : null, sSpan: 1 });
+        firstB = false;
+      });
+      if (buyer.items.length > 1)
+        flat.push({ type: 'sub', key: `sb-${bi}`, level: 0, rows: buyer.items, label: `${buyer.items[0].BuyerName} — Total` });
+      return;
+    }
+
+    const sgs = groupConsec(buyer.items, r => r.StyleCode);
+    sgs.forEach((sg, si) => {
+      const sSpan = styleTtl(sg);
+      let firstS = true;
+
+      if (viewType === '3') {
+        sg.items.forEach((row, ri) => {
+          flat.push({ type: 'data', key: `${bi}-${si}-${ri}`, row, bSpan: firstB ? bSpan : null, sSpan: firstS ? sSpan : null, pSpan: 1 });
+          firstB = false; firstS = false;
+        });
+        if (sg.items.length > 1)
+          flat.push({ type: 'sub', key: `ss-${bi}-${si}`, level: 1, rows: sg.items, label: `${sg.items[0].StyleNo} — Sub Total` });
+        return;
+      }
+
+      const pgs = groupConsec(sg.items, r => r.PoSlNo);
+      pgs.forEach((pg, pi) => {
+        const pSpan = poTtl(pg);
+        let firstP = true;
+
+        if (viewType === '2') {
+          pg.items.forEach((row, ri) => {
+            flat.push({ type: 'data', key: `${bi}-${si}-${pi}-${ri}`, row, bSpan: firstB ? bSpan : null, sSpan: firstS ? sSpan : null, pSpan: firstP ? pSpan : null, cSpan: 1 });
+            firstB = false; firstS = false; firstP = false;
+          });
+          if (pg.items.length > 1)
+            flat.push({ type: 'sub', key: `sp-${bi}-${si}-${pi}`, level: 2, rows: pg.items, label: `PO: ${pg.items[0].PoNo} — Sub Total` });
+          return;
+        }
+
+        // vt='1'
+        const cgs = groupConsec(pg.items, r => r.ColorCode);
+        cgs.forEach((cg, ci_) => {
+          const cSpan = colTtl(cg);
+          let firstC = true;
+          cg.items.forEach((row, ri) => {
+            flat.push({ type: 'data', key: `${bi}-${si}-${pi}-${ci_}-${ri}`, row, bSpan: firstB ? bSpan : null, sSpan: firstS ? sSpan : null, pSpan: firstP ? pSpan : null, cSpan: firstC ? cSpan : null });
+            firstB = false; firstS = false; firstP = false; firstC = false;
+          });
+          if (cg.items.length > 1)
+            flat.push({ type: 'sub', key: `sc-${bi}-${si}-${pi}-${ci_}`, level: 3, rows: cg.items, label: `${cg.items[0].ColorName} — Sub Total` });
+        });
+        if (cgs.length > 1)
+          flat.push({ type: 'sub', key: `sp-${bi}-${si}-${pi}`, level: 2, rows: pg.items, label: `PO: ${pg.items[0].PoNo} — Sub Total` });
+      });
+      if (pgs.length > 1)
+        flat.push({ type: 'sub', key: `ss-${bi}-${si}`, level: 1, rows: sg.items, label: `${sg.items[0].StyleNo} — Sub Total` });
+    });
+    if (sgs.length > 1)
+      flat.push({ type: 'sub', key: `sb-${bi}`, level: 0, rows: buyer.items, label: `${buyer.items[0].BuyerName} — Total` });
+  });
+
+  // ── Row renderers ─────────────────────────────────────────────────
+  let rowIdx = 0;
+
+  const renderDataRow_ = (desc) => {
+    const { row } = desc;
+    const bg = rowIdx++ % 2 === 0 ? C.tableRow : C.tableRowAlt;
+    const rs = (n) => n > 1 ? n : undefined;
+
+    return (
+      <tr key={desc.key} style={{ background: bg }}>
+        {/* Buyer — sticky */}
+        {desc.bSpan !== null && (
+          <td rowSpan={rs(desc.bSpan)} style={{
+            padding: '7px 10px', fontWeight: 800, fontSize: 11, color: '#1565C0',
+            verticalAlign: 'top', whiteSpace: 'nowrap',
+            position: 'sticky', left: 0, zIndex: 1, background: bg,
+            borderBottom: borderB, borderRight: '3px solid #1565C030',
+            boxShadow: '2px 0 6px rgba(21,101,192,0.08)',
+          }}>{row.BuyerName}</td>
+        )}
+        {/* StyleNo */}
+        {desc.sSpan !== null && (
+          <td rowSpan={rs(desc.sSpan)} style={{ ...idTdBase, fontWeight: 600, color: C.blue }}>{row.StyleNo || '—'}</td>
+        )}
+        {/* PoNo + Destination (vt ≠ '4') */}
+        {viewType !== '4' && desc.pSpan !== null && (
+          <>
+            <td rowSpan={rs(desc.pSpan)} style={{ ...idTdBase, color: C.textSub }}>{row.PoNo || '—'}</td>
+            <td rowSpan={rs(desc.pSpan)} style={{ ...idTdBase, color: C.textSub }}>{row.DestinationName || '—'}</td>
+          </>
+        )}
+        {/* ColorName (vt '1' or '2') */}
+        {(viewType === '1' || viewType === '2') && desc.cSpan !== null && (
+          <td rowSpan={rs(desc.cSpan)} style={{ ...idTdBase, color: C.textSub }}>{row.ColorName || '—'}</td>
+        )}
+        {/* SizeName (vt '1') */}
+        {viewType === '1' && (
+          <td style={{ ...idTdBase, color: C.textSub }}>{row.SizeName || '—'}</td>
+        )}
+        {/* OrderQty */}
+        <td style={{ ...idTdBase, textAlign: 'right', fontWeight: 600, color: C.text }}>{Number(row.OrderQty || 0).toLocaleString()}</td>
+        {/* Pipeline data */}
+        {DPR_FLAT_COLS.map((col, ci) => <DataCell key={ci} col={col} value={row[col.f] || 0} />)}
+      </tr>
+    );
+  };
+
+  const renderSubRow_ = (desc) => {
+    const sub  = dprSumRows(desc.rows);
+    const s    = SUB_STYLES[desc.level] || SUB_STYLES[0];
+    const lblCols = leadingCount - COVERED[desc.level];
+
+    return (
+      <tr key={desc.key} style={{ background: s.bg, borderTop: `2px solid ${s.border}` }}>
+        <td colSpan={lblCols} style={{
+          padding: '6px 10px', fontWeight: desc.level === 0 ? 800 : 700, fontSize: 11, color: s.text,
+          whiteSpace: 'nowrap', background: s.bg,
+          borderBottom: borderB, borderRight: `1px solid ${C.tableBorder}`,
+        }}>{desc.label}</td>
+        <td style={{ ...idTdBase, fontWeight: 700, textAlign: 'right', background: s.bg, color: s.text }}>{Number(sub.OrderQty || 0).toLocaleString()}</td>
+        {DPR_FLAT_COLS.map((col, ci) => <SubTotalCell key={ci} col={col} value={sub[col.f] || 0} bg={s.bg} textCol={s.text} />)}
+      </tr>
+    );
+  };
+
+  // ── Combo select style ────────────────────────────────────────────
+  const cmbStyle = {
+    padding: '4px 8px', fontSize: 11, borderRadius: 5,
+    background: C.card, color: C.text, border: `1px solid ${C.tableBorder}`,
+    cursor: 'pointer', minWidth: 140, maxWidth: 210,
+  };
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 16, paddingBottom: 16, overflow: 'auto' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{ background: C.card, borderRadius: 12, width: 'min(98vw, 1900px)', maxHeight: '94vh', display: 'flex', flexDirection: 'column', boxShadow: '0 12px 56px rgba(0,0,0,0.45)', border: `1px solid ${C.cardBorder}` }}>
+
+        {/* ── Modal header ── */}
+        <div style={{ background: 'linear-gradient(135deg,#1565C0,#0d47a1)', borderRadius: '12px 12px 0 0', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <span style={{ fontSize: 18 }}>📋</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', letterSpacing: 0.3 }}>Daily Production Report</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>{localDate ? toDisplayDate(localDate) : '—'} &nbsp;·&nbsp; Shift {shifts.find(s => s.ShiftCode === localShift)?.ShiftName || localShift}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.35)', borderRadius: 7, padding: '5px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#fff' }}>✕ Close</button>
+        </div>
+
+        {/* ── View type selector ── */}
+        <div style={{ padding: '8px 20px', background: C.tableTh, borderBottom: `1px solid ${C.tableBorder}`, display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: C.textSub, marginRight: 4 }}>View :</span>
+          {VT_LABELS.map(([k, label]) => (
+            <button key={k} onClick={() => setLocalVt(k)} style={{
+              padding: '4px 14px', fontSize: 11, fontWeight: 700, borderRadius: 20, cursor: 'pointer',
+              border: `1.5px solid ${localVt === k ? '#1565C0' : C.tableBorder}`,
+              background: localVt === k ? '#1565C0' : C.card,
+              color: localVt === k ? '#fff' : C.textSub,
+              transition: 'all 0.15s',
+              boxShadow: localVt === k ? '0 2px 8px rgba(21,101,192,0.3)' : 'none',
+            }}>{label}</button>
+          ))}
+          {loading && <span style={{ fontSize: 11, color: C.textSub, marginLeft: 8, fontStyle: 'italic' }}>Loading…</span>}
+          {!loading && rows.length > 0 && (
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: C.textSub }}>{rows.length} row{rows.length !== 1 ? 's' : ''}</span>
+          )}
+        </div>
+
+        {/* ── Filter bar ── */}
+        <div style={{ padding: '7px 20px', background: C.card, borderBottom: `2px solid ${C.tableBorder}`, display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: C.textSub }}>Filter :</span>
+          <input
+            type="date" value={localDate}
+            onChange={e => setLocalDate(e.target.value)}
+            style={{ padding: '4px 8px', fontSize: 11, borderRadius: 5, background: C.card, color: C.text, border: `1px solid ${C.tableBorder}`, cursor: 'pointer' }}
+          />
+          <select value={localShift} onChange={e => setLocalShift(e.target.value)} style={cmbStyle}>
+            {shifts.map(s => <option key={s.ShiftCode} value={s.ShiftCode}>{s.ShiftName || s.ShiftCode}</option>)}
+          </select>
+          <span style={{ color: C.tableBorder, margin: '0 2px', fontSize: 14 }}>|</span>
+          <select value={selBuyer} onChange={e => { setSelBuyer(e.target.value); setSelStyle(''); setSelPo(''); }} style={cmbStyle}>
+            <option value="">All Buyers</option>
+            {buyers.map(b => <option key={b.BuyerCode} value={b.BuyerCode}>{b.BuyerName}{b.ShortName ? ` (${b.ShortName})` : ''}</option>)}
+          </select>
+          <select value={selStyle} onChange={e => { setSelStyle(e.target.value); setSelPo(''); }} disabled={!selBuyer} style={{ ...cmbStyle, opacity: selBuyer ? 1 : 0.5 }}>
+            <option value="">All Styles</option>
+            {buyerStyles.map(s => <option key={s.StyleCode} value={s.StyleCode}>{s.StyleNo}</option>)}
+          </select>
+          <select value={selPo} onChange={e => setSelPo(e.target.value)} disabled={!selStyle} style={{ ...cmbStyle, opacity: selStyle ? 1 : 0.5 }}>
+            <option value="">All POs</option>
+            {buyerPos.map(p => <option key={p.PoSlNo} value={p.PoSlNo}>{p.PoNo}{p.DestinationName ? ` — ${p.DestinationName}` : ''}</option>)}
+          </select>
+          {(selBuyer || selStyle || selPo) && (
+            <button onClick={() => { setSelBuyer(''); setSelStyle(''); setSelPo(''); }} style={{
+              fontSize: 10, padding: '3px 9px', borderRadius: 4, cursor: 'pointer', fontWeight: 600,
+              background: 'transparent', color: C.red, border: `1px solid ${C.red}50`,
+            }}>✕ Clear</button>
+          )}
+          <button
+            onClick={() => onViewTypeChange(localVt, { buyerCode: selBuyer, styleCode: selStyle, poSlNo: selPo }, localDate, localShift)}
+            style={{
+              marginLeft: 'auto', padding: '5px 16px', fontSize: 11, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+              background: '#1565C0', color: '#fff', border: 'none',
+              boxShadow: '0 2px 8px rgba(21,101,192,0.35)',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >🔄 Refresh</button>
+        </div>
+
+        {/* ── Table ── */}
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          {error ? (
+            <div style={{ padding: 28, color: C.red, fontSize: 13, textAlign: 'center' }}>⚠ {error}</div>
+          ) : rows.length === 0 && !loading ? (
+            <div style={{ padding: 36, color: C.textSub, fontSize: 13, textAlign: 'center' }}>No production data for this date / shift.</div>
+          ) : (
+            <table style={{ borderCollapse: 'collapse', fontSize: 11, minWidth: '100%', tableLayout: 'auto' }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 3 }}>
+                <tr>
+                  <th style={{ ...idThBase, minWidth: 120, position: 'sticky', left: 0, zIndex: 4, background: '#0d47a1' }} rowSpan={2}>Buyer</th>
+                  {idCols.map(c => (
+                    <th key={c.f} style={{ ...idThBase, minWidth: c.f === 'StyleNo' ? 110 : c.f === 'DestinationName' ? 100 : c.f === 'PoNo' ? 85 : 70 }} rowSpan={2}>{c.label}</th>
+                  ))}
+                  {DPR_DATA_GROUPS.map((g, i) => (
+                    <th key={i} colSpan={g.cols.length} style={{
+                      padding: '6px 8px', fontSize: 10, fontWeight: 800, textAlign: 'center', whiteSpace: 'nowrap',
+                      background: g.color, color: '#fff',
+                      borderLeft: g.sectionStart ? '3px solid rgba(255,255,255,0.5)' : '1px solid rgba(255,255,255,0.2)',
+                      borderBottom: '1px solid rgba(255,255,255,0.3)',
+                      letterSpacing: 0.5,
+                    }}>{g.label}</th>
+                  ))}
+                </tr>
+                <tr>
+                  {DPR_FLAT_COLS.map((c, i) => (
+                    <th key={i} style={{
+                      padding: '4px 7px', fontSize: 9, fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap', minWidth: 52,
+                      background: c.color + '22', color: c.color,
+                      borderLeft: c.sectionStart ? `3px solid ${c.color}` : `1px solid ${c.color}33`,
+                      borderBottom: `2px solid ${c.color}`,
+                      fontStyle: c.wip ? 'italic' : 'normal', letterSpacing: 0.3,
+                    }}>{c.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {flat.map(desc => desc.type === 'data' ? renderDataRow_(desc) : renderSubRow_(desc))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={1 + leadingCount} style={{
+                    padding: '7px 12px', fontWeight: 800, fontSize: 12, color: '#fff',
+                    background: '#1565C0', whiteSpace: 'nowrap',
+                    position: 'sticky', left: 0, zIndex: 1,
+                    letterSpacing: 0.4, borderTop: '3px solid #0d47a1',
+                  }}>Grand Total</td>
+                  <td style={{ padding: '7px 9px', fontWeight: 800, fontSize: 12, textAlign: 'right', background: '#1565C0', color: '#fff', borderTop: '3px solid #0d47a1', borderLeft: `1px solid rgba(255,255,255,0.2)` }}>
+                    {Number(grandTotal.OrderQty || 0).toLocaleString()}
+                  </td>
+                  {DPR_FLAT_COLS.map((col, ci) => <GrandTotalCell key={ci} col={col} value={grandTotal[col.f] || 0} />)}
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const filterInputStyle = {
   flex: 1, border: 'none', outline: 'none', padding: '0 10px',
   fontSize: 12, color: '#fff', background: 'transparent', fontFamily: 'inherit',
@@ -165,6 +660,11 @@ export default function Dashboard({ onLogout }) {
   const [savedOprs, setSavedOprs] = useState({ present: 0, abs: 0, hasValue: false });
   const [savedLineOprs, setSavedLineOprs] = useState({});
   const [linesPopup, setLinesPopup] = useState(null); // { styleNo, poNo, buyer, lines: [...] }
+  const [dprOpen,    setDprOpen]    = useState(false);
+  const [dprViewType,setDprViewType]= useState('4');
+  const [dprRows,    setDprRows]    = useState([]);
+  const [dprLoading, setDprLoading] = useState(false);
+  const [dprError,   setDprError]   = useState(null);
 
   const session  = loadSession();
   const masterDB = session?.masterDB || '';
@@ -236,6 +736,26 @@ export default function Dashboard({ onLogout }) {
 
 
   const handleLogout = useCallback(() => { clearSession(); if (onLogout) onLogout(); }, [onLogout]);
+
+  const fetchDpr = useCallback((vt, filters = {}, date = dateInput, sh = shift) => {
+    if (!date || !sh) return;
+    setDprLoading(true); setDprError(null);
+    const params = { date: toApiDate(date), shift: sh, masterDB, transDB, viewType: vt };
+    if (filters.buyerCode) params.buyerCode = filters.buyerCode;
+    if (filters.styleCode) params.styleCode = filters.styleCode;
+    if (filters.poSlNo)    params.poSlNo    = filters.poSlNo;
+    const p = new URLSearchParams(params);
+    axios.get(`/api/dashboard/dpr?${p}`)
+      .then(r => setDprRows(r.data || []))
+      .catch(e => setDprError(e.response?.data?.error || e.message || 'Failed'))
+      .finally(() => setDprLoading(false));
+  }, [dateInput, shift, masterDB, transDB]);
+
+  const openDpr = useCallback(() => {
+    setDprOpen(true);
+    setDprViewType('4');
+    fetchDpr('4');
+  }, [fetchDpr]);
 
   // ── Derived values ─────────────────────────────────────────────
   const factory    = factoryData?.factory || {};
@@ -626,9 +1146,20 @@ export default function Dashboard({ onLogout }) {
               <div style={{ display: 'flex', gap: 12, alignItems: 'stretch', height: 260 }}>
                 <Card title="Hourly Production" icon="📊"
                   badge={
-                    <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>
-                      <span style={{ fontSize: 10, fontWeight: 400, color: 'rgba(255,255,255,0.75)', marginRight: 5 }}>({outputName})</span>
-                      Total: {fmt(outputPcs)} pcs
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>
+                        <span style={{ fontSize: 10, fontWeight: 400, color: 'rgba(255,255,255,0.75)', marginRight: 5 }}>({outputName})</span>
+                        Total: {fmt(outputPcs)} pcs
+                      </span>
+                      <button
+                        onClick={openDpr}
+                        style={{
+                          background: 'rgba(255,255,255,0.18)', color: '#fff',
+                          border: '1px solid rgba(255,255,255,0.5)', borderRadius: 6,
+                          padding: '3px 10px', fontSize: 11, fontWeight: 700,
+                          cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: 0.3,
+                        }}
+                      >View DPR</button>
                     </span>
                   }
                   style={{ flex: 2, minWidth: 0, display: 'flex', flexDirection: 'column' }}
@@ -962,6 +1493,22 @@ export default function Dashboard({ onLogout }) {
             </div>
           )}
         </div>
+
+        {/* ── DPR Modal ── */}
+        <DPRModal
+          open={dprOpen}
+          onClose={() => setDprOpen(false)}
+          rows={dprRows}
+          loading={dprLoading}
+          error={dprError}
+          viewType={dprViewType}
+          onViewTypeChange={(vt, filters = {}, date, sh) => { setDprViewType(vt); fetchDpr(vt, filters, date, sh); }}
+          dateInput={dateInput}
+          shift={shift}
+          shifts={shifts}
+          masterDB={masterDB}
+          transDB={transDB}
+        />
 
         {/* ── Lines Popup Modal ── */}
         {linesPopup && (

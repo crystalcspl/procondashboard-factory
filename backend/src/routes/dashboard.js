@@ -1890,4 +1890,236 @@ router.get('/active-orders', async (req, res) => {
   }
 });
 
+router.get('/dpr', async (req, res) => {
+  try {
+    const { conn, masterDB, transDB } = resolveContext(req);
+    const { date, shift, viewType = '4', buyerCode = '', styleCode = '', poSlNo = '' } = req.query;
+    if (!date || !shift) return res.json([]);
+
+    const [, m, y] = date.split('/').map(Number);
+    const fyStartYear = m >= 4 ? y : y - 1;
+    const fyStart = `${fyStartYear}-04-01`;
+
+    const vt = ['1','2','3','4'].includes(String(viewType)) ? String(viewType) : '4';
+
+    const grpMaster = {
+      '1': `v.BuyerCode, v.BuyerName, v.StyleCode, v.StyleNo, v.PoSlNo, v.PoNo, v.ColorCode, v.ColorName, v.SizeCode, v.SizeName`,
+      '2': `v.BuyerCode, v.BuyerName, v.StyleCode, v.StyleNo, v.PoSlNo, v.PoNo, v.ColorCode, v.ColorName`,
+      '3': `v.BuyerCode, v.BuyerName, v.StyleCode, v.StyleNo, v.PoSlNo, v.PoNo`,
+      '4': `v.BuyerCode, v.StyleCode`,
+    };
+    const selMaster = {
+      '1': `v.BuyerCode, v.BuyerName, v.StyleCode, v.StyleNo, v.PoSlNo, v.PoNo, v.ColorCode, v.ColorName, v.SizeCode, v.SizeName, MAX(ISNULL(v.OrderQty,0)) AS OrderQty, MAX(v.DestinationName) AS DestinationName`,
+      '2': `v.BuyerCode, v.BuyerName, v.StyleCode, v.StyleNo, v.PoSlNo, v.PoNo, v.ColorCode, v.ColorName, SUM(ISNULL(v.OrderQty,0)) AS OrderQty, MAX(v.DestinationName) AS DestinationName`,
+      '3': `v.BuyerCode, v.BuyerName, v.StyleCode, v.StyleNo, v.PoSlNo, v.PoNo, SUM(ISNULL(v.OrderQty,0)) AS OrderQty, MAX(v.DestinationName) AS DestinationName`,
+      '4': `v.BuyerCode, MAX(v.BuyerName) AS BuyerName, v.StyleCode, MAX(v.StyleNo) AS StyleNo, SUM(ISNULL(v.OrderQty,0)) AS OrderQty`,
+    };
+    const grpTrans = {
+      '1': `BuyerCode, StyleCode, PoSlNo, ColorCode, SizeCode`,
+      '2': `BuyerCode, StyleCode, PoSlNo, ColorCode`,
+      '3': `BuyerCode, StyleCode, PoSlNo`,
+      '4': `BuyerCode, StyleCode`,
+    };
+    const selCols = {
+      '1': `m.BuyerCode, m.BuyerName, m.StyleCode, m.StyleNo, m.PoSlNo, m.PoNo, m.ColorCode, m.ColorName, m.SizeCode, m.SizeName, m.OrderQty, m.DestinationName,`,
+      '2': `m.BuyerCode, m.BuyerName, m.StyleCode, m.StyleNo, m.PoSlNo, m.PoNo, m.ColorCode, m.ColorName, m.OrderQty, m.DestinationName,`,
+      '3': `m.BuyerCode, m.BuyerName, m.StyleCode, m.StyleNo, m.PoSlNo, m.PoNo, m.OrderQty, m.DestinationName,`,
+      '4': `m.BuyerCode, m.BuyerName, m.StyleCode, m.StyleNo, m.OrderQty,`,
+    };
+    const joinCondCut = {
+      '1': `c.BuyerCode=m.BuyerCode AND c.StyleCode=m.StyleCode AND c.PoSlNo=m.PoSlNo AND c.ColorCode=m.ColorCode AND c.SizeCode=m.SizeCode`,
+      '2': `c.BuyerCode=m.BuyerCode AND c.StyleCode=m.StyleCode AND c.PoSlNo=m.PoSlNo AND c.ColorCode=m.ColorCode`,
+      '3': `c.BuyerCode=m.BuyerCode AND c.StyleCode=m.StyleCode AND c.PoSlNo=m.PoSlNo`,
+      '4': `c.BuyerCode=m.BuyerCode AND c.StyleCode=m.StyleCode`,
+    };
+    const joinCondProd = {
+      '1': `p.BuyerCode=m.BuyerCode AND p.StyleCode=m.StyleCode AND p.PoSlNo=m.PoSlNo AND p.ColorCode=m.ColorCode AND p.SizeCode=m.SizeCode`,
+      '2': `p.BuyerCode=m.BuyerCode AND p.StyleCode=m.StyleCode AND p.PoSlNo=m.PoSlNo AND p.ColorCode=m.ColorCode`,
+      '3': `p.BuyerCode=m.BuyerCode AND p.StyleCode=m.StyleCode AND p.PoSlNo=m.PoSlNo`,
+      '4': `p.BuyerCode=m.BuyerCode AND p.StyleCode=m.StyleCode`,
+    };
+    const joinCondDesp = {
+      '1': `d.BuyerCode=m.BuyerCode AND d.StyleCode=m.StyleCode AND d.PoSlNo=m.PoSlNo AND d.ColorCode=m.ColorCode AND d.SizeCode=m.SizeCode`,
+      '2': `d.BuyerCode=m.BuyerCode AND d.StyleCode=m.StyleCode AND d.PoSlNo=m.PoSlNo AND d.ColorCode=m.ColorCode`,
+      '3': `d.BuyerCode=m.BuyerCode AND d.StyleCode=m.StyleCode AND d.PoSlNo=m.PoSlNo`,
+      '4': `d.BuyerCode=m.BuyerCode AND d.StyleCode=m.StyleCode`,
+    };
+    const orderBy = {
+      '1': `m.BuyerName, m.StyleNo, m.PoNo, m.ColorName, m.SizeName`,
+      '2': `m.BuyerName, m.StyleNo, m.PoNo, m.ColorName`,
+      '3': `m.BuyerName, m.StyleNo, m.PoNo`,
+      '4': `m.BuyerName, m.StyleNo`,
+    };
+
+    const query = `
+      ;WITH Master AS (
+        SELECT ${selMaster[vt]}
+        FROM [${masterDB}]..V_StylePoHdDt v WITH (NOLOCK)
+        WHERE v.PoClosed = 'N' AND v.StyleClosed = 'N'
+          AND (@buyerCode = '' OR v.BuyerCode = @buyerCode)
+          AND (@styleCode = '' OR v.StyleCode = @styleCode)
+          AND (@poSlNo    = '' OR v.PoSlNo    = @poSlNo)
+        GROUP BY ${grpMaster[vt]}
+      ),
+      Cut AS (
+        SELECT ${grpTrans[vt]},
+          ISNULL(SUM(CASE WHEN CONVERT(DATE,ProdnDate)=CONVERT(DATE,@date,103) AND ShiftCode=@shift THEN CutPcs ELSE 0 END),0) AS CutToday,
+          ISNULL(SUM(CASE WHEN ProdnDate>=@fyStart AND CONVERT(DATE,ProdnDate)<=CONVERT(DATE,@date,103) THEN CutPcs ELSE 0 END),0) AS CutCum
+        FROM [${transDB}]..T_FactStyleCutting WITH (NOLOCK)
+        WHERE ProdnDate >= @fyStart AND CONVERT(DATE,ProdnDate) <= CONVERT(DATE,@date,103)
+        GROUP BY ${grpTrans[vt]}
+      ),
+      Prod AS (
+        SELECT ${grpTrans[vt]},
+          ISNULL(SUM(CASE WHEN CONVERT(DATE,ProdnDate)=CONVERT(DATE,@date,103) AND ShiftCode=@shift THEN IssuedPcs         ELSE 0 END),0) AS FedToday,
+          ISNULL(SUM(CASE WHEN ProdnDate>=@fyStart AND CONVERT(DATE,ProdnDate)<=CONVERT(DATE,@date,103) THEN IssuedPcs         ELSE 0 END),0) AS FedCum,
+          ISNULL(SUM(CASE WHEN CONVERT(DATE,ProdnDate)=CONVERT(DATE,@date,103) AND ShiftCode=@shift THEN SewnPcs+OTSewnPcs ELSE 0 END),0) AS SewnToday,
+          ISNULL(SUM(CASE WHEN ProdnDate>=@fyStart AND CONVERT(DATE,ProdnDate)<=CONVERT(DATE,@date,103) THEN SewnPcs+OTSewnPcs ELSE 0 END),0) AS SewnCum,
+          ISNULL(SUM(CASE WHEN CONVERT(DATE,ProdnDate)=CONVERT(DATE,@date,103) AND ShiftCode=@shift THEN QcPassedPcs      ELSE 0 END),0) AS ChkPasToday,
+          ISNULL(SUM(CASE WHEN ProdnDate>=@fyStart AND CONVERT(DATE,ProdnDate)<=CONVERT(DATE,@date,103) THEN QcPassedPcs      ELSE 0 END),0) AS ChkPasCum,
+          ISNULL(SUM(CASE WHEN CONVERT(DATE,ProdnDate)=CONVERT(DATE,@date,103) AND ShiftCode=@shift THEN QcRejectedPcs    ELSE 0 END),0) AS ChkRejToday,
+          ISNULL(SUM(CASE WHEN ProdnDate>=@fyStart AND CONVERT(DATE,ProdnDate)<=CONVERT(DATE,@date,103) THEN QcRejectedPcs    ELSE 0 END),0) AS ChkRejCum,
+          ISNULL(SUM(CASE WHEN CONVERT(DATE,ProdnDate)=CONVERT(DATE,@date,103) AND ShiftCode=@shift THEN QCAQLPassedPcs   ELSE 0 END),0) AS AQLPasToday,
+          ISNULL(SUM(CASE WHEN ProdnDate>=@fyStart AND CONVERT(DATE,ProdnDate)<=CONVERT(DATE,@date,103) THEN QCAQLPassedPcs   ELSE 0 END),0) AS AQLPasCum,
+          ISNULL(SUM(CASE WHEN CONVERT(DATE,ProdnDate)=CONVERT(DATE,@date,103) AND ShiftCode=@shift THEN QCAQLRejectedPcs ELSE 0 END),0) AS AQLRejToday,
+          ISNULL(SUM(CASE WHEN ProdnDate>=@fyStart AND CONVERT(DATE,ProdnDate)<=CONVERT(DATE,@date,103) THEN QCAQLRejectedPcs ELSE 0 END),0) AS AQLRejCum,
+          ISNULL(SUM(CASE WHEN CONVERT(DATE,ProdnDate)=CONVERT(DATE,@date,103) AND ShiftCode=@shift THEN QCFinishingPassedPcs   ELSE 0 END),0) AS FinPasToday,
+          ISNULL(SUM(CASE WHEN ProdnDate>=@fyStart AND CONVERT(DATE,ProdnDate)<=CONVERT(DATE,@date,103) THEN QCFinishingPassedPcs   ELSE 0 END),0) AS FinPasCum,
+          ISNULL(SUM(CASE WHEN CONVERT(DATE,ProdnDate)=CONVERT(DATE,@date,103) AND ShiftCode=@shift THEN QCFinishingRejectedPcs ELSE 0 END),0) AS FinRejToday,
+          ISNULL(SUM(CASE WHEN ProdnDate>=@fyStart AND CONVERT(DATE,ProdnDate)<=CONVERT(DATE,@date,103) THEN QCFinishingRejectedPcs ELSE 0 END),0) AS FinRejCum,
+          ISNULL(SUM(CASE WHEN CONVERT(DATE,ProdnDate)=CONVERT(DATE,@date,103) AND ShiftCode=@shift THEN QCPackingPassedPcs ELSE 0 END),0) AS PkgToday,
+          ISNULL(SUM(CASE WHEN ProdnDate>=@fyStart AND CONVERT(DATE,ProdnDate)<=CONVERT(DATE,@date,103) THEN QCPackingPassedPcs ELSE 0 END),0) AS PkgCum
+        FROM [${transDB}]..T_FactStyleProduction WITH (NOLOCK)
+        WHERE ProdnDate >= @fyStart AND CONVERT(DATE,ProdnDate) <= CONVERT(DATE,@date,103)
+        GROUP BY ${grpTrans[vt]}
+      ),
+      Desp AS (
+        SELECT ${grpTrans[vt]},
+          ISNULL(SUM(CASE WHEN CONVERT(DATE,DocDate)=CONVERT(DATE,@date,103) AND ShiftCode=@shift THEN DespatchPcs ELSE 0 END),0) AS DespToday,
+          ISNULL(SUM(CASE WHEN CONVERT(DATE,DocDate)>=CONVERT(DATE,@fyStart) AND CONVERT(DATE,DocDate)<=CONVERT(DATE,@date,103) THEN DespatchPcs ELSE 0 END),0) AS DespCum
+        FROM [${transDB}]..V_Despatch WITH (NOLOCK)
+        WHERE CONVERT(DATE,DocDate) >= CONVERT(DATE,@fyStart)
+          AND CONVERT(DATE,DocDate) <= CONVERT(DATE,@date,103)
+          AND Cancelled <> 'Y'
+        GROUP BY ${grpTrans[vt]}
+      )
+      SELECT
+        ${selCols[vt]}
+        ISNULL(c.CutToday, 0)                                                       AS CuttingToday,
+        ISNULL(c.CutCum,   0)                                                       AS CuttingCum,
+        m.OrderQty - ISNULL(c.CutCum, 0)                                           AS CuttingBalance,
+        ISNULL(p.FedToday, 0)                                                       AS FeedingToday,
+        ISNULL(p.FedCum,   0)                                                       AS FeedingCum,
+        ISNULL(c.CutCum,   0) - ISNULL(p.FedCum,    0)                            AS FeedingWIP,
+        ISNULL(p.SewnToday,0)                                                       AS SewnToday,
+        ISNULL(p.SewnCum,  0)                                                       AS SewnCum,
+        ISNULL(p.FedCum,   0) - ISNULL(p.SewnCum,   0)                            AS SewnWIP,
+        ISNULL(p.ChkPasToday,0)                                                     AS ChkPassedToday,
+        ISNULL(p.ChkPasCum,  0)                                                     AS ChkPassedCum,
+        ISNULL(p.ChkRejToday,0)                                                     AS ChkRejToday,
+        ISNULL(p.ChkRejCum,  0)                                                     AS ChkRejCum,
+        ISNULL(p.SewnCum,  0) - ISNULL(p.ChkPasCum,0) - ISNULL(p.ChkRejCum,  0)  AS ChkWIP,
+        ISNULL(p.AQLPasToday,0)                                                     AS AQLPassedToday,
+        ISNULL(p.AQLPasCum,  0)                                                     AS AQLPassedCum,
+        ISNULL(p.AQLRejToday,0)                                                     AS AQLRejToday,
+        ISNULL(p.AQLRejCum,  0)                                                     AS AQLRejCum,
+        ISNULL(p.ChkPasCum,  0) - ISNULL(p.AQLPasCum,0) - ISNULL(p.AQLRejCum,0)  AS AQLWIP,
+        ISNULL(p.FinPasToday,0)                                                     AS FinPassedToday,
+        ISNULL(p.FinPasCum,  0)                                                     AS FinPassedCum,
+        ISNULL(p.FinRejToday,0)                                                     AS FinRejToday,
+        ISNULL(p.FinRejCum,  0)                                                     AS FinRejCum,
+        ISNULL(p.AQLPasCum,  0) - ISNULL(p.FinPasCum,0) - ISNULL(p.FinRejCum,0)  AS FinWIP,
+        ISNULL(p.PkgToday, 0)                                                       AS PkgToday,
+        ISNULL(p.PkgCum,   0)                                                       AS PkgCum,
+        ISNULL(p.FinPasCum,  0) - ISNULL(p.PkgCum,  0)                            AS PkgWIP,
+        ISNULL(d.DespToday,0)                                                       AS DespatchToday,
+        ISNULL(d.DespCum,  0)                                                       AS DespatchCum,
+        ISNULL(p.PkgCum,   0) - ISNULL(d.DespCum,  0)                             AS DespatchWIP
+      FROM  Master m
+      LEFT JOIN Cut  c ON ${joinCondCut[vt]}
+      LEFT JOIN Prod p ON ${joinCondProd[vt]}
+      LEFT JOIN Desp d ON ${joinCondDesp[vt]}
+      WHERE ISNULL(c.CutCum,0) + ISNULL(p.SewnCum,0) + ISNULL(d.DespCum,0) > 0
+      ORDER BY ${orderBy[vt]}
+    `;
+
+    const pool = await getPool(conn, transDB);
+    const result = await pool.request()
+      .input('date',      sql.VarChar(20), date)
+      .input('shift',     sql.VarChar(10), shift)
+      .input('fyStart',   sql.VarChar(20), fyStart)
+      .input('buyerCode', sql.VarChar(30), buyerCode)
+      .input('styleCode', sql.VarChar(30), styleCode)
+      .input('poSlNo',    sql.VarChar(30), poSlNo)
+      .query(query);
+
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('[DPR] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── DPR cascade lookups ───────────────────────────────────────────────────────
+
+router.get('/dpr-buyers', async (req, res) => {
+  try {
+    const { conn, masterDB, transDB } = resolveContext(req);
+    const pool = await getPool(conn, transDB);
+    const result = await pool.request().query(`
+      SELECT BuyerCode, BuyerName, ShortName
+      FROM [${masterDB}]..M_Buyer WITH (NOLOCK)
+      WHERE Active = 'Y'
+      ORDER BY BuyerName
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('[DPR-BUYERS] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/dpr-styles', async (req, res) => {
+  try {
+    const { conn, masterDB, transDB } = resolveContext(req);
+    const { buyerCode } = req.query;
+    if (!buyerCode) return res.json([]);
+    const pool = await getPool(conn, transDB);
+    const result = await pool.request()
+      .input('buyerCode', sql.VarChar(30), buyerCode)
+      .query(`
+        SELECT StyleCode, StyleNo
+        FROM [${masterDB}]..M_StyleHd WITH (NOLOCK)
+        WHERE BuyerCode = @buyerCode AND Active = 'Y' AND StyleClosed = 'N'
+        ORDER BY StyleNo
+      `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('[DPR-STYLES] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/dpr-pos', async (req, res) => {
+  try {
+    const { conn, masterDB, transDB } = resolveContext(req);
+    const { buyerCode, styleCode } = req.query;
+    if (!buyerCode || !styleCode) return res.json([]);
+    const pool = await getPool(conn, transDB);
+    const result = await pool.request()
+      .input('buyerCode', sql.VarChar(30), buyerCode)
+      .input('styleCode', sql.VarChar(30), styleCode)
+      .query(`
+        SELECT PoSlNo, PoNo, CONVERT(VARCHAR(10), PoDate, 103) AS PoDate, DestinationName
+        FROM [${masterDB}]..V_StylePoHd WITH (NOLOCK)
+        WHERE BuyerCode = @buyerCode AND StyleCode = @styleCode AND PoClosed = 'N'
+        ORDER BY PoNo
+      `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('[DPR-POS] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
